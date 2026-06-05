@@ -1,4 +1,5 @@
-import express, { json, urlencoded, Request, Response, NextFunction } from "express";
+import express, { json, urlencoded } from "express";
+import type { Request, Response, NextFunction } from "express";
 import morgan from "morgan";
 import { errorHandler, rateLimiter, logger } from "intellisolar-common";
 import helmet from "helmet";

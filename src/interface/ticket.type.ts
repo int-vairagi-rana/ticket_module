@@ -1,4 +1,4 @@
-import { TicketStatus, TicketPriority} from '../enums/ticket.enum';
+import type { TicketStatus, TicketPriority} from '../enums/ticket.enum';
 
 export type TicketStatusValue = typeof TicketStatus[keyof typeof TicketStatus];
 export type TicketPriorityValue = typeof TicketPriority[keyof typeof TicketPriority];
@@ -9,15 +9,15 @@ export interface TicketRow {
   ticket_number: string;
   name:string;
   email:string;
-  mobile_no:string;
-  component_type:string;
+  phone_number:string;
+  component_type_id:string;
   component_id:string;
   plant_id:string;
   title: string;
   description?: string | null;
   status: TicketStatusValue;
   priority: TicketPriorityValue;
-  attachments?: string[] | null;
+  attachment_ids?: string[] | null;
   created_by: string;
   created_by_name?: string;
   updated_by?: string | null;
@@ -28,11 +28,6 @@ export interface TicketRow {
     rating: number;
     description?: string | null;
     created_at: string;
-    company_reply?: {
-      message: string;
-      created_at: string;
-      created_by: string;
-    } | null;
   } | null;
   status_history?: Array<{
     from_status: string | null;
@@ -64,13 +59,15 @@ export interface TicketRow {
   // optional joined fields (like assignee_name, plant_name)
   assignee_name?: string;
   plant_name?: string;
+  component_name?:string;
+  component_type?:string;
 }
 
-export interface CreateTicketInput extends Omit<TicketRow ,"id"| "created_at" | "updated_at" | "created_">{
+export interface CreateTicketInput extends Omit<TicketRow, "id" | "created_at" | "updated_at" | "updated_by" | "updated_by_name" | "created_by_name" | "assigned_to"> {
   id?:string
 }
 
-export interface UpdateTicketInput extends Omit<TicketRow ,"id"| "created_at" | "updated_at" | "created_">{
+export interface UpdateTicketInput extends Omit<TicketRow, "id" | "created_at" | "updated_at" | "created_by_name" | "updated_by_name"> {
   id?:string;
 }
 

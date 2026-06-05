@@ -16,7 +16,7 @@ type PartialFieldConfig = Omit<EntityFieldConfig,
     required?: boolean;
 };
 
-const plantBase: PartialFieldConfig[] = [
+const ticketBase: PartialFieldConfig[] = [
     {
         name: "id",
         displayName: "ID",
@@ -34,7 +34,7 @@ const plantBase: PartialFieldConfig[] = [
         name: "ticket_number",
         displayName: "Ticket Number",
         internalName: "ticket_number",
-        type: ValueTypesEnum.UUID,
+        type: ValueTypesEnum.STRING,
         sortable: false,
         filterable: true,
         searchable: false,
@@ -60,7 +60,7 @@ const plantBase: PartialFieldConfig[] = [
         name: "email",
         displayName: "Email",
         internalName: "email",
-        type: ValueTypesEnum.STRING,
+        type: ValueTypesEnum.EMAIL,
         sortable:false,
         filterable: false,
         searchable: false,
@@ -73,7 +73,7 @@ const plantBase: PartialFieldConfig[] = [
         name: "phone_number",
         displayName: "Phone Number",
         internalName: "phone_number",
-        type: ValueTypesEnum.NUMBER,
+        type: ValueTypesEnum.STRING,
         sortable: false,
         filterable: false,
         searchable: false,
@@ -86,7 +86,7 @@ const plantBase: PartialFieldConfig[] = [
         name: "component_type_id",
         displayName: "Component type ID",
         internalName: "component_type_id",
-        type: ValueTypesEnum.STRING,
+        type: ValueTypesEnum.UUID,
         sortable: true,
         filterable: true,
         searchable: false,
@@ -99,7 +99,7 @@ const plantBase: PartialFieldConfig[] = [
         name: "component_id",
         displayName: "Component ID",
         internalName: "component_id",
-        type: ValueTypesEnum.STRING,
+        type: ValueTypesEnum.UUID,
         sortable:true,
         filterable: true,
         searchable: false,
@@ -112,7 +112,7 @@ const plantBase: PartialFieldConfig[] = [
         name: "plant_id",
         displayName: "Plant ID",
         internalName: "plant_id",
-        type: ValueTypesEnum.STRING,
+        type: ValueTypesEnum.UUID,
         sortable: false,
         filterable: true,
         searchable: false,
@@ -173,6 +173,72 @@ const plantBase: PartialFieldConfig[] = [
         allowArrayFilter:true
     },
     {
+        name: "assigned_to",
+        displayName: "Assigned to",
+        internalName: "assigned_to",
+        type: ValueTypesEnum.UUID,
+        sortable: true,
+        filterable: true,
+        searchable: false,
+        includeInList: true,
+        includeInDetail:true,
+        required:true,
+        allowArrayFilter:true
+    },
+    {
+        name: "feedback",
+        displayName: "Feedback",
+        internalName: "feedback",
+        type: ValueTypesEnum.ARRAY,
+        sortable:false,
+        filterable:false,
+        searchable: true,
+        includeInList: true,
+        includeInDetail:false,
+        required:false,
+        allowArrayFilter:false,
+
+    },
+    {
+        name: "due_date",
+        displayName: "Due date",
+        internalName: "due_date",
+        type: ValueTypesEnum.DATE,
+        sortable: true,
+        filterable: true,
+        searchable: false,
+        includeInList: true,
+        includeInDetail:true,
+        required:false,
+        allowArrayFilter:true
+    },
+    {
+        name: "status_history",
+        displayName: "Status history",
+        internalName: "status_history",
+        type: ValueTypesEnum.ARRAY,
+        sortable:false,
+        filterable: true,
+        searchable: false,
+        includeInList: true,
+        includeInDetail:true,
+        required:false,
+        allowArrayFilter:true
+    },
+    {
+        name: "attachment_ids",
+        displayName: "Attachments",
+        internalName: "attachment_ids",
+        type: ValueTypesEnum.ARRAY,
+        sortable:false,
+        filterable:false,
+        searchable: false,
+        includeInList: true,
+        includeInDetail:true,
+        required:false,
+        allowArrayFilter:false
+    },
+    {
         name: "created_by",
         displayName: "Created By",
         internalName: "created_by",
@@ -195,6 +261,19 @@ const plantBase: PartialFieldConfig[] = [
         searchable: false,
         required: true,
         creatable: false
+    },
+    {
+        name: "resolved_at",
+        displayName: "Resolved_At",
+        internalName: "resolved_at",
+        type: ValueTypesEnum.DATE,
+        sortable: true,
+        filterable: true,
+        searchable: false,
+        includeInList:true,
+        includeInDetail:true,
+        required:false
+        
     },
     {
         name: "created_at",
@@ -220,7 +299,7 @@ const plantBase: PartialFieldConfig[] = [
     }
 ]
 
-export const plantFieldConfigs: EntityFieldConfig[] = plantBase.map((field) => ({
+export const ticketFieldConfigs: EntityFieldConfig[] = ticketBase.map((field) => ({
     allowArrayFilter: field.allowArrayFilter ?? false,
     creatable: field.creatable ?? true,
     updatable: field.updatable ?? true,
