@@ -1,57 +1,34 @@
-import express from "express";
-import type { NextFunction, Request, Response } from "express";
-import { AppError, isAuthenticated, logger, responseHandler, validateRequest } from "intellisolar-common";
-import type { TicketRow } from "../../../interface";
-import { Ticket } from "../../../models";
-import { getMyOwnTicketsValidation } from "./get-my-own-tickets.validation";
+// import express from "express";
+// import type { NextFunction, Request, Response } from "express"
+// import { isAuthenticated, isAuthorized, responseHandler, validateRequest , logger, CacheManager, AppError , Database , BaseModel } from "intellisolar-common";
+// import { UserRole } from "intellisolar-common";
+// import { TicketRow } from "../../../interface";
+// import { User, Plant , Ticket } from "../../../models";
+// import { getMyTicketsValidation } from "./get-my-own-tickets.validation";
 
-const router = express.Router();
+// const router = express.Router();
 
-router.get(
-    "/v1/tickets/me",
-    responseHandler,
-    isAuthenticated,
-    getMyOwnTicketsValidation,
-    validateRequest,
-    async (req: Request, res: Response, next: NextFunction) => {
-        try {
-            const currentUser = req.currentUser;
 
-            if (!currentUser) {
-                throw new AppError("Authentication required.", 401);
-            }
+// router.get(
+//     "/v1/tickets/me",
+//     responseHandler,
+//     isAuthenticated,
+//     //isAuthorized("get-my-tickets"),
+//     getMyTicketsValidation,
+//     validateRequest,
+//     async (req: Request, res: Response, next: NextFunction) => {
+//         try {
+//             const {
+//                 page = 1, limit = 50, search, sort_order, sort_by, title ,priority , status , due_date , overdue , startDate , endDate , plant_name 
+//                 , component_type , component_name  ,resolved_at , due_From , due_to , created_at , updated_at , start_date , end_date,  created_from, created_to, updated_from, updated_to
+//             } = req.query;
 
-            const result = await Ticket.find({
-                query: {
-                    ...req.query,
-                    created_by: currentUser.id
-                },
-                populate: true
-            });
+//             const currentUser = req.currentUser!;
 
-            res.sendResponse(
-                {
-                    message: "Tickets fetched successfully.",
-                    tickets: result.data as TicketRow[],
-                    pagination: {
-                        page: result.queryParams.page,
-                        limit: result.queryParams.limit,
-                        totalCount: result.total,
-                        totalPages: Math.ceil(result.total / result.queryParams.limit)
-                    }
-                },
-                result.data.length === 0 ? 204 : 200,
-                {
-                    targetType: "Ticket",
-                    action: "get-my-own-tickets"
-                }
-            );
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : String(error);
-            logger.error(`Get my own tickets error: ${message}`);
-            next(error);
-        }
-    }
-);
+           
+//         }catch{
 
-export { router as getMyOwnTicketsV1Router };
+//         }
+//     }
+// );
+// export { router as getMyTicketsRouter };

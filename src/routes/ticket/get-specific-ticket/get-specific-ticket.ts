@@ -1,6 +1,6 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
-import { CacheManager, isAuthenticated, logger, NotFoundError, responseHandler, UserRole, validateRequest } from "intellisolar-common";
+import { AuthorizationError, CacheManager, isAuthenticated, logger, NotFoundError, responseHandler, UserRole, validateRequest } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
 import { getSpecificTicketValidation } from "./get-specific-ticket.validations";
@@ -19,6 +19,7 @@ router.get(
             const id = (req.params["id"] as string).trim();
             const currentUser = req.currentUser!;
 
+
             const ticket = await CacheManager.getOrSet<TicketRow>({
                 key: `ticket:${id}`,
                 fetcher: async () => {
@@ -35,10 +36,12 @@ router.get(
                 }
             });
 
-            if (currentUser.role === UserRole.User as string ) {
-                if (ticket.created_by !== currentUser.id) {
-                    throw new NotFoundError("Ticket not found.");
-                }
+            if (currentUser.role !== (UserRole.User as string)) {
+                throw new AuthorizationError("You are not authorized to view this ticket.");
+            }
+
+            if (ticket.created_by !== currentUser.id) {
+                throw new NotFoundError("Ticket not found.");
             }
 
             const data  = {
@@ -80,16 +83,17 @@ router.get(
                 200,
                 {
                     targetType: "Ticket",
-                    targetId: ticket.id,
+                    targetId: data.id,
                     action: "get-specific-ticket"
                 }
             );
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : String(error);
-            logger.error(`Get specific ticket error: ${message}`);
-            next(error);
-        }
+        } 
+    catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error(`Get specific ticket error: ${message}`);
+        next(error);
     }
+ }
 );
 
 export { router as getSpecificTicketV1Router };

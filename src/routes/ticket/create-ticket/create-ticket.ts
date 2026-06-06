@@ -1,6 +1,6 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
-import { AuthorizationError, CacheManager, Database, InternalServerError, isAuthenticated, isAuthorized, logger, NotFoundError, responseHandler, sanitizeObject, UserRole, validateRequest } from "intellisolar-common";
+import { AuthorizationError, CacheManager, Database, InternalServerError, isAuthenticated, logger, NotFoundError, responseHandler, sanitizeObject, UserRole, validateRequest } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Plant, Ticket } from "../../../models";
 //import {  Component, ComponentType} from "intellisolar-comman";
@@ -20,6 +20,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         const transaction = await Database.beginTransaction();
         try {
+            
             const currentUser = req.currentUser;
             if (!currentUser) {
                 throw new AuthorizationError("Authentication required.");
@@ -97,6 +98,7 @@ router.post(
             }
 
             await CacheManager.invalidateMany({ ids: [ticket.id], baseKey: "ticket", listPattern: "tickets:list:*" });
+            await CacheManager.delPattern("tickets:statistics:*");
             await Database.commitTransaction(transaction);
 
             res.sendResponse(

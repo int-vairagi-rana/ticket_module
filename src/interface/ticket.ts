@@ -22,7 +22,7 @@ export interface TicketRow {
   created_by_name?: string;
   updated_by?: string | null;
   updated_by_name?: string | null;
-  assigned_to?: string | null;
+  assigned_to?: string | string[] | null;
   due_date?: Date | null;
   feedback?: {
     rating: number;
@@ -95,7 +95,7 @@ export interface TicketFilters {
   unassigned?: boolean;
   start_date?: Date;
   end_date?: Date;
-  search?: string;                // search in title/description/ticket_number/project_name
+  search?: string;                // search in title/description/ticket_number/plant_name
   page?: number;
   limit?: number;
   sortBy?: string;
