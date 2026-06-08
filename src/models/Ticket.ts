@@ -1,6 +1,6 @@
 import type { TicketRow } from "../interface";
-import { BaseModel } from "intellisolar-common"
-import type { FindResult, PopulateOption } from "intellisolar-common"
+import { BaseModel, Database, parseQueryParams, ValueTypesEnum , TransactionClient} from "intellisolar-common"
+import type { FindResult, PopulateOption, UpdateData } from "intellisolar-common"
 import { ticketFieldConfigs } from "../valid-fields";
 
 export class Ticket extends BaseModel {
@@ -57,27 +57,40 @@ export class Ticket extends BaseModel {
 
     static override async find({
         query,
-        tenantScoped = false,
-        tenantId,
         selectColumns,
         notSelectedColumns,
         populate = true
     }: {
         query: Record<string, unknown>;
-        tenantScoped?: boolean;
-        tenantId?: string;
         selectColumns?: string[];
         notSelectedColumns?: string[];
         populate?: boolean;
     }): Promise<FindResult<TicketRow>> {
-        return super.find({
+         return super.find({
             query,
-            tenantScoped,
-            tenantId,
             selectColumns,
             notSelectedColumns,
-            forcedFilters: tenantScoped && tenantId ? { tenant_id: tenantId } : {},
             populate: populate ? this.detailPopulateJoins : [],
-        }) as Promise<FindResult<TicketRow>>;
+        });
     }
+    
+
+    // static override async updateOne<T extends Record<string, any>>({
+    //     where,
+    //     data,
+    //     extraAllowed = [],
+    //     transaction,
+    // }: {
+    //     where: Partial<T>;
+    //     data:UpdateData<T>;
+    //     extraAllowed?: string[];
+    //     transaction?: TransactionClient;
+    // }): Promise<T | null> {
+    //     return super.updateOne<T>({
+    //         where,
+    //         data,
+    //         extraAllowed,
+    //         transaction,
+    //     });
+    // }
 };

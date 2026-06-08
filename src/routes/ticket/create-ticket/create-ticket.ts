@@ -1,128 +1,177 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
-import { AuthorizationError, CacheManager, Database, InternalServerError, isAuthenticated, logger, NotFoundError, responseHandler, sanitizeObject, UserRole, validateRequest } from "intellisolar-common";
+import {
+  AuthorizationError,
+  CacheManager,
+  Database,
+  InternalServerError,
+  isAuthenticated,
+  logger,
+  NotFoundError,
+  responseHandler,
+  sanitizeObject,
+  sendEmail,
+  UserRole,
+  validateRequest,
+} from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
-import { Plant, Ticket } from "../../../models";
-//import {  Component, ComponentType} from "intellisolar-comman";
+import { Plant, Ticket, User } from "../../../models";
+// import { Component, ComponentType } from "intellisolar-common";
 import { createTicketValidation } from "./create-ticket.validation";
+import { getAssignmentEmail } from "../assign-ticket/assign-ticket";
+
 const router = express.Router();
 
 const trimString = (value: unknown) => (typeof value === "string" ? value.trim() : value);
 const normalizeEmail = (value: unknown) => (typeof value === "string" ? value.trim().toLowerCase() : value);
 
 router.post(
-    "/v1/ticket",
-    responseHandler,
-    isAuthenticated,
-    // isAuthorized("create-ticket"),
-    createTicketValidation,
-    validateRequest,
-    async (req: Request, res: Response, next: NextFunction) => {
-        const transaction = await Database.beginTransaction();
+  "/v1/ticket",
+  responseHandler,
+  isAuthenticated,
+  createTicketValidation,
+  validateRequest,
+  async (req: Request, res: Response, next: NextFunction) => {
+    const transaction = await Database.beginTransaction();
+    try {
+      const currentUser = req.currentUser;
+      if (!currentUser) {
+        throw new AuthorizationError("Authentication required.");
+      }
+
+      if (currentUser.role !== (UserRole.User as string)) {
+        throw new AuthorizationError("You are not authorised to create the ticket.");
+      }
+
+      const {
+        name,
+        email,
+        phone_number,
+        plant_id: plantId,
+        // component_type_id: componentTypeId,
+        // component_id: componentId,
+        title,
+        description,
+        status,
+        priority,
+        attachment_ids,
+        due_date,
+      } = sanitizeObject(req.body as Record<string, unknown>);
+
+      // FIX 1: Added contact_person_name to select and type so sendEmail can use it
+      const plant = await Plant.findOne<{
+        id: string;
+        contact_person_email: string;
+        contact_person_name: string;
+      }>({
+        where: { id: plantId },
+        select: ["id", "contact_person_email", "contact_person_name"],
+      });
+
+      if (!plant) {
+        throw new NotFoundError("Plant not found.");
+      }
+
+      const userPlantIds = currentUser.plant_ids ?? [];
+      if (!userPlantIds.includes(plant.id)) {
+        throw new AuthorizationError("You are not authorized to create a ticket for this plant.");
+      }
+
+      // Find assignee by plant's contact_person_email
+      let assignedTo: string | null = null;
+
+      if (plant.contact_person_email) {
+        const contactPersonEmail = plant.contact_person_email.trim().toLowerCase();
+
+        const assigneeUser = await User.findOne<{ id: string }>({
+          where: { email: contactPersonEmail },
+          select: ["id"],
+        });
+
+        assignedTo = assigneeUser?.id ?? null;
+      }
+
+      // const componentType = await ComponentType.findOne<{ id: string }>({
+      //   where: { id: componentTypeId },
+      //   select: ["id"],
+      // });
+      // if (!componentType) throw new NotFoundError("Component type not found.");
+
+      // const component = await Component.findOne<{ id: string }>({
+      //   where: { id: componentId, plant_id: plant.id, component_type_id: componentType.id },
+      //   select: ["id"],
+      // });
+      // if (!component) throw new NotFoundError("Component not found for this plant and component type.");
+
+      const data = {
+        name: trimString(name),
+        email: normalizeEmail(email),
+        phone_number,
+        plant_id: plant.id,
+        // component_type_id: componentTypeId,
+        // component_id: componentId,
+        title: trimString(title),
+        description: trimString(description),
+        status,
+        priority,
+        attachment_ids,
+        due_date,                          // FIX 3: was missing from original
+        assigned_to: assignedTo,
+        created_by: currentUser.id,
+      };
+
+      const ticket = await Ticket.create<TicketRow>(data);
+      if (!ticket) {
+        throw new InternalServerError("Failed to create ticket, please try again later.");
+      }
+
+      await CacheManager.invalidateMany({
+        ids: [ticket.id],
+        baseKey: "ticket",
+        listPattern: "tickets:list:*",
+      });
+      await CacheManager.delPattern("tickets:statistics:*");
+      await Database.commitTransaction(transaction);
+
+      // FIX 2: Only send email if a valid assignee was found
+      if (assignedTo && plant.contact_person_email) {
         try {
-            
-            const currentUser = req.currentUser;
-            if (!currentUser) {
-                throw new AuthorizationError("Authentication required.");
-            }
-
-            const {
-                name,
-                email,
-                phone_number,
-                plant_id: plantId,
-                //component_type_id:componentTypeId,
-                //component_id:componentId,
-                title,
-                description,
-                status,
-                priority,
-                attachment_ids,
-                due_date
-            } = sanitizeObject(req.body as Record<string, unknown>);
-
-            if (currentUser.role !== UserRole.User as string) {
-                throw new AuthorizationError("You are not authorised to create the ticket..");
-            }
-
-            const plant = await Plant.findOne<{ id: string }>({ where: { id: plantId },select: ["id"]});
-
-            if (!plant) {
-                throw new NotFoundError("Plant not found.");
-            }
-
-            const userPlantIds = currentUser.plant_ids ?? [];
-
-            if (!userPlantIds.includes(plant.id)) {
-                throw new AuthorizationError("You are not authorized to create a ticket for this plant.");
-            }
-
-            // const componentType = await ComponentType.findOne<{ id: string }>({where: { id: componentTypeId },select: ["id"]});
-
-            // if (!componentType) {
-            //     throw new NotFoundError("Component type not found for this plant.");
-            // }
-
-            // const component = await Component.findOne<{ id: string }>({
-            //     where: {
-            //         id: componentId,
-            //         plant_id: plant.id,
-            //         component_type_id: componentType.id
-            //     },
-            //     select: ["id"]
-            // });
-
-            // if (!component) {
-            //     throw new NotFoundError("Component not found for this plant and component type.");
-            // }
-
-            const data = {
-                name: trimString(name),
-                email: normalizeEmail(email),
-                phone_number,
-                plant_id: plant.id,
-                // component_type_id:componentTypeId,
-                // component_id:componentId,
-                title: trimString(title),
-                description: trimString(description),
-                status,
-                priority,
-                attachment_ids,
-                due_date,
-                created_by: currentUser.id
-            };
-
-            const ticket = await Ticket.create<TicketRow>(data);
-            if (!ticket) {
-                throw new InternalServerError("Failed to create ticket, please try again later.");
-            }
-
-            await CacheManager.invalidateMany({ ids: [ticket.id], baseKey: "ticket", listPattern: "tickets:list:*" });
-            await CacheManager.delPattern("tickets:statistics:*");
-            await Database.commitTransaction(transaction);
-
-            res.sendResponse(
-                {
-                    message: "Ticket created successfully.",
-                    ticket
-                },
-                201,
-                {
-                    targetType: "Ticket",
-                    targetId: ticket.id,
-                    action: "create-ticket",
-                    newData: ticket
-                }
-            );
-        } catch (error: unknown) {
-            if (transaction) {
-                await Database.rollbackTransaction(transaction);
-            }
-            const message = error instanceof Error ? error.message : String(error);
-            logger.error(`Create ticket error: ${message}`);
-            next(error);
+          await sendEmail({
+            email: plant.contact_person_email,
+            subject: `Ticket assigned to you: #${ticket.ticket_number}`,
+            message: getAssignmentEmail(ticket, plant.contact_person_name),
+          });
+        } catch (emailError) {
+          const emailMsg = emailError instanceof Error ? emailError.message : String(emailError);
+          logger.warn(
+            `Assignment email could not be delivered for ticket #${ticket.ticket_number} to ${plant.contact_person_email}: ${emailMsg}`,
+          );
         }
+      }
+
+      // FIX 4: Added return before res.sendResponse
+      return res.sendResponse(
+        {
+          message: "Ticket created successfully.",
+          ticket,
+        },
+        201,
+        {
+          targetType: "Ticket",
+          targetId: ticket.id,
+          action: "create-ticket",
+          newData: ticket,
+        },
+      );
+    } catch (error: unknown) {
+      if (transaction) {
+        await Database.rollbackTransaction(transaction);
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Create ticket error: ${message}`);
+      next(error);
     }
+  },
 );
 
 export { router as createTicketV1Router };

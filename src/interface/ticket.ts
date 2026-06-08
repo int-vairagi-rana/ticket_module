@@ -23,7 +23,6 @@ export interface TicketRow {
   updated_by?: string | null;
   updated_by_name?: string | null;
   assigned_to?: string | string[] | null;
-  due_date?: Date | null;
   feedback?: {
     rating: number;
     description?: string | null;
@@ -81,14 +80,11 @@ export interface TicketFilters {
   created_by?: string;
   updated_by?: string;
   for_user_id?: string;          // shows tickets where user is assigned or created
-  due_date?: Date;
   created_from?: Date;
   created_to?: Date;
   updated_at?: Date;
   updated_from?: Date;
   updated_to?: Date;
-  due_from?: Date;
-  due_to?: Date;
   has_feedback?: boolean;
   feedback_rating?: number;
   overdue?: boolean;

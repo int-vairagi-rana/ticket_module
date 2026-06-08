@@ -7,8 +7,15 @@ export const assignTicketValidation = [
             param: true,
             mandatory: true,
             message: "Invalid or missing ticket id."
-        }
+        },
+        {
+            name: "user_id",
+            param: false,
+            mandatory: true,
+            message: "Invalid or missing user id."
+        },
     ]),
+
     ...ExpressValidatorWrapper.emailValidator([
         {
             name: "contact_person_email",

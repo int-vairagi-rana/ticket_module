@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { AuthorizationError, CacheManager, isAuthenticated, logger, NotFoundError, responseHandler, UserRole, validateRequest } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
+import { buildTicketStatusMetrics } from "../../../utils/ticket-status-metrics";
 import { getSpecificTicketValidation } from "./get-specific-ticket.validations";
 
 const router = express.Router();
@@ -44,6 +45,7 @@ router.get(
                 throw new NotFoundError("Ticket not found.");
             }
 
+            const statusMetrics = buildTicketStatusMetrics(ticket);
             const data  = {
                 id:ticket.id,
                 ticket_number:ticket.ticket_number,
@@ -60,8 +62,10 @@ router.get(
                 plant_name:ticket.plant_name,
                 component_name:ticket.component_name,
                 component_type:ticket.component_type,
-                due_date:ticket.due_date,
                 status_history:ticket.status_history,
+                status_metrics: statusMetrics,
+                status_statistics: statusMetrics,
+                feedback: ticket.feedback,
                 attachments_ids:ticket.attachment_ids,
                 assigned_to_Id:ticket.assigned_to,
                 assigned_to_name:ticket.assignee_name,

@@ -15,14 +15,14 @@ import {
   AppError,
 } from "intellisolar-common";
 import type { TicketRow, PlantRow } from "../../../interface";
-import { Ticket, Plant } from "../../../models";
+import { Ticket, Plant, User } from "../../../models";
 import { assignTicketValidation } from "./assign-ticket.validation";
 
 const router = express.Router();
 
 const NON_ASSIGNABLE_STATUSES = ["closed", "resolved", "cancelled"];
 
-const escapeHtml = (value: unknown): string =>
+export const escapeHtml = (value: unknown): string =>
   String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -30,18 +30,11 @@ const escapeHtml = (value: unknown): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const getAssignmentEmail = (
+export const getAssignmentEmail = (
   ticket: TicketRow,
   contactPersonName?: string | null,
 ): string => {
   const assigneeName = contactPersonName?.trim() || "there";
-  const dueDate = ticket.due_date
-    ? new Date(ticket.due_date).toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
-    : "N/A";
 
   return `
     <p>Hello ${escapeHtml(assigneeName)},</p>
@@ -51,7 +44,6 @@ const getAssignmentEmail = (
       <strong>Title:</strong> ${escapeHtml(ticket.title)}<br />
       <strong>Priority:</strong> ${escapeHtml(ticket.priority)}<br />
       <strong>Status:</strong> ${escapeHtml(ticket.status)}<br />
-      <strong>Due Date:</strong> ${escapeHtml(dueDate)}
     </p>
     <p>
       <strong>Plant Name:</strong> ${escapeHtml(ticket.plant_name || "N/A")}<br />
@@ -82,7 +74,7 @@ router.put(
       const contactPersonEmail = (body["contact_person_email"] as string).trim().toLowerCase();
 
       // 1. Admin role guard
-      if (currentUser.role !== (UserRole.Admin as string)) {
+      if (currentUser.role !== (UserRole.Admin as string) || currentUser.role !== (UserRole.SuperAdmin as string) || ) {
         throw new AuthorizationError("Only admin users can assign tickets.");
       }
 
@@ -101,13 +93,14 @@ router.put(
 
       // 3. Ticket must be linked to a plant
       if (!ticket.plant_id) {
-        throw new AppError("Ticket is not associated with any plant.",400);
+        throw new AppError("Ticket is not associated with any plant.", 400);
       }
 
       // 4. Ticket status guard
       if (NON_ASSIGNABLE_STATUSES.includes(ticket.status)) {
         throw new AppError(
-          `Cannot assign a ticket with status "${ticket.status}". Only open or in-progress tickets can be assigned.`,400
+          `Cannot assign a ticket with status "${ticket.status}". Only open or in-progress tickets can be assigned.`,
+          400,
         );
       }
 
@@ -141,19 +134,28 @@ router.put(
         throw new AppError("Provided email does not match the plant's registered contact person email.",400);
       }
 
-      // 8. Assign ticket
-      const updatedTicket = await Ticket.updateOne<TicketRow>({
-        where: { id },
-        data: {
-          assigned_to: contactPersonEmail,
-          updated_by: currentUser.id,
-        },
-      });
+      if (plant.contact_person_email) {
+        const plantContactPersonEmail = plant.contact_person_email.trim().toLowerCase();
 
-      if (!updatedTicket) {
-        throw new InternalServerError(
-          "Failed to assign ticket, please try again later.",
-        );
+        const assigneeUser = await User.findOne<{ id: string }>({
+          where: { email: plantContactPersonEmail },
+          select: ["id"],
+        });
+
+        // 8. Assign ticket
+        const updatedTicket = await Ticket.updateOne<TicketRow>({
+          where: { id },
+          data: {
+            assigned_to: assigneeUser?.id ?? null,
+            updated_by: currentUser.id,
+          },
+        });
+
+        if (!updatedTicket) {
+          throw new InternalServerError(
+            "Failed to assign ticket, please try again later.",
+          );
+        }
       }
 
       // 9. Re-fetch fully populated fresh ticket for cache + response

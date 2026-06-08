@@ -1,2 +1,3 @@
 export * from "./Plant";
-export * from "./ticket";
+export * from "./Ticket";
+//export * from "./User";

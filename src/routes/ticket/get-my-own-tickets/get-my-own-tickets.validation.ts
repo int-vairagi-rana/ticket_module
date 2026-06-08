@@ -7,6 +7,7 @@ export const getMyTicketsValidation = [
    ...ExpressValidatorWrapper.uuidValidator([
     {
         name:"assigned_to",
+        query: true,
         nullable:true,
         maxLength:36,
         minLength:36,
@@ -14,6 +15,7 @@ export const getMyTicketsValidation = [
     },
     {
         name:"created_by",
+        query: true,
         nullable:true,
         maxLength:36,
         minLength:36,
@@ -21,6 +23,7 @@ export const getMyTicketsValidation = [
     },
     {
         name:"updated_by",
+        query: true,
         nullable:true,
         maxLength:36,
         minLength:36,
@@ -28,10 +31,27 @@ export const getMyTicketsValidation = [
     },
     {
         name:"plant_id",
+        query: true,
         nullable:true,
         maxLength:36,
         minLength:36,
         message:"Invalid plant ID format."
+    },
+    {
+        name:"component_type_id",
+        query: true,
+        nullable:true,
+        maxLength:36,
+        minLength:36,
+        message:"Invalid component type ID format."
+    },
+    {
+        name:"component_id",
+        query: true,
+        nullable:true,
+        maxLength:36,
+        minLength:36,
+        message:"Invalid component ID format."
     }
     ]),
   ...ExpressValidatorWrapper.numberValidator([
@@ -49,6 +69,14 @@ export const getMyTicketsValidation = [
       min: 1,
       max: 100,
       message: "Limit must be a positive number less than or equal to 100",
+    },
+    {
+      name: "feedback_rating",
+      query: true,
+      nullable: true,
+      min: 1,
+      max: 5,
+      message: "Feedback rating must be a number between 1 and 5",
     },
   ]),
   ...ExpressValidatorWrapper.stringValidator([
@@ -90,6 +118,7 @@ export const getMyTicketsValidation = [
     },
     {
       name: "plant_name",
+      query: true,
       nullable: true,
       maxLength: 50,
       message: "Plant name must be a valid string"
@@ -232,6 +261,13 @@ export const getMyTicketsValidation = [
         query: true, 
         nullable: true, 
         message: 'unassigned must be true or false' 
+
+    },
+    {  
+        name: 'has_feedback', 
+        query: true, 
+        nullable: true, 
+        message: 'has_feedback must be true or false' 
 
     },
   ])

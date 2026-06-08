@@ -5,6 +5,16 @@ const isValidTicketStatus = (value: string) => Object.values(TicketStatus).inclu
 const isValidTicketPriority = (value: string) => Object.values(TicketPriority).includes(value as TicketPriority);
 
 export const createTicketValidation = [
+    ...ExpressValidatorWrapper.uuidValidator([
+        {
+            name : "assigned_to",
+            mandatory:true,
+            minLength:36,
+            maxLength:36,
+            nullable:false,
+            message : "Invalid  or missing assigned to id."
+        }
+    ]),
     ...ExpressValidatorWrapper.stringValidator([
         {
             name: "name",
@@ -88,13 +98,5 @@ export const createTicketValidation = [
             nullable: true,
             message: "Attachment ids must be an array."
         }
-    ]),
-    ...ExpressValidatorWrapper.dateValidator([
-        {
-            name: "due_date",
-            nullable: true,
-            message: "Due date must be a valid ISO 8601 date.",
-            mandatory:false
-        },
     ])
 ];

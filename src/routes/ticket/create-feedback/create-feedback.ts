@@ -1,0 +1,126 @@
+import express from "express";
+import type { NextFunction, Request, Response } from "express";
+import {
+  AuthorizationError,
+  CacheManager,
+  ConflictError,
+  InternalServerError,
+  isAuthenticated,
+  logger,
+  NotFoundError,
+  responseHandler,
+  sanitizeObject,
+  UserRole,
+  validateRequest,
+} from "intellisolar-common";
+import type { TicketRow } from "../../../interface";
+import { Ticket } from "../../../models";
+import { TicketStatus } from "../../../enums/ticket.enum";
+import { createFeedbackValidation } from "./create-feedback.validation";
+
+const router = express.Router();
+
+const trimString = (value: unknown) => (typeof value === "string" ? value.trim() : value);
+
+router.post(
+  "/v1/ticket/:id/feedback",
+  responseHandler,
+  isAuthenticated,
+  createFeedbackValidation,
+  validateRequest,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = (req.params["id"] as string).trim();
+      const currentUser = req.currentUser!;
+
+      if (currentUser.role !== (UserRole.User as string)) {
+        throw new AuthorizationError("Only users can give ticket feedback.");
+      }
+
+      const ticket = await Ticket.findOne<TicketRow>({
+        where: { id },
+        populate: Ticket.detailPopulateJoins,
+      });
+
+      if (!ticket) {
+        throw new NotFoundError("Ticket not found.");
+      }
+
+      if (ticket.created_by !== currentUser.id) {
+        throw new AuthorizationError("You can give feedback only for tickets created by you.");
+      }
+
+      if (ticket.status !== (TicketStatus.RESOLVED as string)) {
+        throw new ConflictError("Feedback can be given only after the ticket is resolved successfully.");
+      }
+
+      if (ticket.feedback) {
+        throw new ConflictError("Feedback has already been submitted for this ticket.");
+      }
+
+      const body = sanitizeObject(req.body as Record<string, unknown>);
+      const description = trimString(body["description"]);
+      const feedback = {
+        rating: Number(body["rating"]),
+        description: typeof description === "string" ? description : null,
+        created_by: currentUser.id,
+        created_at: new Date().toISOString(),
+      };
+
+      const updatedTicket = await Ticket.updateOne<TicketRow>({
+        where: { id, created_by: currentUser.id, status: TicketStatus.RESOLVED },
+        data: {
+          feedback,
+          updated_by: currentUser.id,
+        },
+      });
+
+      if (!updatedTicket) {
+        throw new InternalServerError("Failed to give feedback, please try again later.");
+      }
+
+      const freshTicket = await Ticket.findOne<TicketRow>({
+        where: { id },
+        populate: Ticket.detailPopulateJoins,
+      });
+
+      if (!freshTicket) {
+        throw new InternalServerError("Failed to retrieve updated ticket details.");
+      }
+
+      await CacheManager.invalidateMany({
+        ids: [id],
+        baseKey: "ticket",
+        listPattern: "tickets:list:*",
+      });
+      await CacheManager.delPattern("tickets:statistics:*");
+      await CacheManager.set(`ticket:${id}`, freshTicket);
+
+      res.sendResponse(
+        {
+          message: "Feedback submitted successfully.",
+          ticket: freshTicket,
+        },
+        201,
+        {
+          targetType: "Ticket",
+          targetId: id,
+          action: "create-ticket-feedback",
+          oldData: ticket,
+          newData: freshTicket,
+          modifiedProperties: {
+            feedback: freshTicket.feedback,
+            updated_by: freshTicket.updated_by,
+            updated_at: freshTicket.updated_at,
+          },
+        },
+      );
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Create ticket feedback error: ${message}`);
+      next(error);
+    }
+  },
+);
+
+export { router as createFeedbackV1Router };

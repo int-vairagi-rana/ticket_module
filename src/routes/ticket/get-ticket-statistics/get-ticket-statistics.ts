@@ -1,186 +1,152 @@
-// import express from "express";
-// import type { NextFunction, Request, Response } from "express";
-// import { AuthorizationError, CacheManager, Database, isAuthenticated, logger, responseHandler, UserRole, validateRequest } from "intellisolar-common";
-// import { TicketPriority, TicketStatus } from "../../../enums/ticket.enum";
-// import { getTicketListCacheKey, getTicketQuery, type TicketQuery } from "../get-all-tickets";
-// import { getTicketStatisticsValidation } from "./get-ticket-statistics.validation";
+import express from "express";
+import type { NextFunction, Request, Response } from "express";
+import {
+  AuthorizationError,
+  CacheManager,
+  isAuthenticated,
+  logger,
+  responseHandler,
+  UserRole,
+  validateRequest,
+} from "intellisolar-common";
+import type { FindResult } from "intellisolar-common";
+import type { TicketRow } from "../../../interface";
+import { Ticket } from "../../../models";
+import { TicketPriority, TicketStatus } from "../../../enums/ticket.enum";
+import { summarizeTicketStatusHistory, summarizeTicketStatusMetrics } from "../../../utils/ticket-status-metrics";
+import { getTicketListCacheKey, getTicketQuery, type TicketQuery } from "../get-all-tickets/get-all-tickets";
+import { getTicketStatisticsValidation } from "./get-ticket-statistics.validation";
 
-// const router = express.Router();
+const router = express.Router();
 
-// type TicketStatistics = {
-//     generated: number;
-//     resolved: number;
-//     total: number;
-//     byStatus: Record<string, number>;
-//     byPriority: Record<string, number>;
-// };
+type TicketStatistics = {
+  total: number;
+  generated: number;
+  resolved: number;
+  overdue: number;
+  feedback: {
+    submitted: number;
+    pending: number;
+    averageRating: number | null;
+  };
+  byStatus: Record<string, number>;
+  byPriority: Record<string, number>;
+  status_history: ReturnType<typeof summarizeTicketStatusHistory>;
+  status_metrics: ReturnType<typeof summarizeTicketStatusMetrics>;
+};
 
-// const emptyCounts = (values: string[]) => values.reduce<Record<string, number>>((acc, value) => {
-//     acc[value] = 0;
-//     return acc;
-// }, {});
+const emptyCounts = (values: string[]) => values.reduce<Record<string, number>>((acc, value) => {
+  acc[value] = 0;
+  return acc;
+}, {});
 
-// const splitCsv = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
+const hasFeedback = (ticket: TicketRow) => Boolean(ticket.feedback);
 
-// const buildStatsWhereClause = (query: TicketQuery) => {
-//     const clauses: string[] = [];
-//     const values: unknown[] = [];
-//     let index = 1;
+const getFeedbackRating = (ticket: TicketRow) => {
+  const rating = ticket.feedback?.rating;
+  return typeof rating === "number" && Number.isFinite(rating) ? rating : null;
+};
 
-//     const addEqualFilter = (field: keyof TicketQuery, column: string) => {
-//         const value = query[field];
-//         if (typeof value !== "string" || !value.trim()) return;
-//         clauses.push(`"${column}" = $${index++}`);
-//         values.push(value.trim());
-//     };
+const isOverdue = (ticket: TicketRow) => {
+  if (!ticket.due_date) return false;
+  if ([TicketStatus.RESOLVED, TicketStatus.CLOSED, TicketStatus.CANCELED].includes(ticket.status as TicketStatus)) return false;
 
-//     const addArrayFilter = (field: keyof TicketQuery, column: string) => {
-//         const value = query[field];
-//         if (typeof value !== "string" || !value.trim()) return;
-//         const items = splitCsv(value);
-//         if (!items.length) return;
-//         clauses.push(`"${column}" = ANY($${index++})`);
-//         values.push(items);
-//     };
+  return new Date(ticket.due_date).getTime() < Date.now();
+};
 
-//     addArrayFilter("status", "status");
-//     addArrayFilter("priority", "priority");
-//     addEqualFilter("plant_id", "plant_id");
-//     addEqualFilter("component_type_id", "component_type_id");
-//     addEqualFilter("component_id", "component_id");
-//     addEqualFilter("assigned_to", "assigned_to");
-//     addEqualFilter("created_by", "created_by");
-//     addEqualFilter("due_date", "due_date");
-//     addEqualFilter("resolved_at", "resolved_at");
+const getTicketStatistics = async (query: TicketQuery): Promise<TicketStatistics> => {
+  const result = await Ticket.find({
+    query: {
+      ...query,
+      page: 1,
+      limit: 100000,
+      sort_by: "created_at",
+      sort_order: "DESC",
+    },
+    selectColumns: [
+      "id",
+      "status",
+      "priority",
+      "due_date",
+      "created_at",
+      "resolved_at",
+      "feedback",
+      "status_history",
+    ],
+    populate: false,
+  }) as FindResult<TicketRow>;
 
-//     if (query.created_at_start) {
-//         clauses.push(`"created_at" >= $${index++}`);
-//         values.push(query.created_at_start);
-//     }
+  const tickets = result.data;
+  const byStatus = emptyCounts(Object.values(TicketStatus));
+  const byPriority = emptyCounts(Object.values(TicketPriority));
 
-//     if (query.created_at_end) {
-//         clauses.push(`"created_at" <= $${index++}`);
-//         values.push(query.created_at_end);
-//     }
+  for (const ticket of tickets) {
+    byStatus[ticket.status] = (byStatus[ticket.status] ?? 0) + 1;
+    byPriority[ticket.priority] = (byPriority[ticket.priority] ?? 0) + 1;
+  }
 
-//     if (query.updated_at_start) {
-//         clauses.push(`"updated_at" >= $${index++}`);
-//         values.push(query.updated_at_start);
-//     }
+  const feedbackRatings = tickets
+    .map(getFeedbackRating)
+    .filter((rating): rating is number => rating !== null);
+  const feedbackSubmitted = tickets.filter(hasFeedback).length;
+  const averageRating = feedbackRatings.length
+    ? Number((feedbackRatings.reduce((sum, rating) => sum + rating, 0) / feedbackRatings.length).toFixed(2))
+    : null;
 
-//     if (query.updated_at_end) {
-//         clauses.push(`"updated_at" <= $${index++}`);
-//         values.push(query.updated_at_end);
-//     }
+  return {
+    total: result.total,
+    generated: result.total,
+    resolved: byStatus[TicketStatus.RESOLVED] ?? 0,
+    overdue: tickets.filter(isOverdue).length,
+    feedback: {
+      submitted: feedbackSubmitted,
+      pending: result.total - feedbackSubmitted,
+      averageRating,
+    },
+    byStatus,
+    byPriority,
+    status_history: summarizeTicketStatusHistory(tickets),
+    status_metrics: summarizeTicketStatusMetrics(tickets),
+  };
+};
 
-//     if (query.search) {
-//         clauses.push(`("title" ILIKE $${index} OR "description" ILIKE $${index} OR "ticket_number" ILIKE $${index})`);
-//         values.push(`%${query.search}%`);
-//         index++;
-//     }
+router.get(
+  "/v1/tickets/statistics",
+  responseHandler,
+  isAuthenticated,
+  getTicketStatisticsValidation,
+  validateRequest,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const currentUser = req.currentUser!;
 
-//     return {
-//         whereClause: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "",
-//         values
-//     };
-// };
+      if (currentUser.role !== (UserRole.Admin as string) && currentUser.role !== (UserRole.SuperAdmin as string)) {
+        throw new AuthorizationError("Only admin and super admin users can view ticket statistics.");
+      }
 
-// const getTicketStatistics = async (query: TicketQuery): Promise<TicketStatistics> => {
-//     const { whereClause, values } = buildStatsWhereClause(query);
+      const query = getTicketQuery(req);
+      const statistics = await CacheManager.getOrSet<TicketStatistics>({
+        key: getTicketListCacheKey("tickets:statistics", currentUser.role, currentUser.id, query),
+        fetcher: async () => getTicketStatistics(query),
+      });
 
-//     const [summary, byStatus, byPriority] = await Promise.all([
-//         Database.query(
-//             `
-//                 SELECT
-//                     COUNT(*)::int AS total,
-//                     COUNT(*)::int AS generated,
-//                     COUNT(*) FILTER (WHERE status = $${values.length + 1})::int AS resolved
-//                 FROM tickets
-//                 ${whereClause}
-//             `,
-//             [...values, TicketStatus.RESOLVED]
-//         ),
-//         Database.query(
-//             `
-//                 SELECT status, COUNT(*)::int AS count
-//                 FROM tickets
-//                 ${whereClause}
-//                 GROUP BY status
-//             `,
-//             values
-//         ),
-//         Database.query(
-//             `
-//                 SELECT priority, COUNT(*)::int AS count
-//                 FROM tickets
-//                 ${whereClause}
-//                 GROUP BY priority
-//             `,
-//             values
-//         )
-//     ]);
+      res.sendResponse(
+        {
+          message: "Ticket statistics fetched successfully.",
+          statistics,
+        },
+        200,
+        {
+          targetType: "Ticket",
+          action: "get-ticket-statistics",
+        },
+      );
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Get ticket statistics error: ${message}`);
+      next(error);
+    }
+  },
+);
 
-//     const statusCounts = emptyCounts(Object.values(TicketStatus));
-//     const priorityCounts = emptyCounts(Object.values(TicketPriority));
-
-//     for (const row of byStatus.rows as Array<{ status: string; count: number }>) {
-//         statusCounts[row.status] = row.count;
-//     }
-
-//     for (const row of byPriority.rows as Array<{ priority: string; count: number }>) {
-//         priorityCounts[row.priority] = row.count;
-//     }
-
-//     const summaryRow = summary.rows[0] as { total?: number; generated?: number; resolved?: number } | undefined;
-
-//     return {
-//         total: summaryRow?.total ?? 0,
-//         generated: summaryRow?.generated ?? 0,
-//         resolved: summaryRow?.resolved ?? 0,
-//         byStatus: statusCounts,
-//         byPriority: priorityCounts
-//     };
-// };
-
-// router.get(
-//     "/v1/tickets/statistics",
-//     responseHandler,
-//     isAuthenticated,
-//     getTicketStatisticsValidation,
-//     validateRequest,
-//     async (req: Request, res: Response, next: NextFunction) => {
-//         try {
-//             const currentUser = req.currentUser!;
-//             const query = getTicketQuery(req);
-
-//             if (currentUser.role === (UserRole.User as string)) {
-//                 query.created_by = currentUser.id;
-//             } else if (currentUser.role !== (UserRole.Admin as string) && currentUser.role !== (UserRole.SuperAdmin as string)) {
-//                 throw new AuthorizationError("You are not authorized to view ticket statistics.");
-//             }
-
-//             const statistics = await CacheManager.getOrSet<TicketStatistics>({
-//                 key: getTicketListCacheKey("tickets:statistics", currentUser.role, currentUser.id, query),
-//                 fetcher: async () => getTicketStatistics(query)
-//             });
-
-//             res.sendResponse(
-//                 {
-//                     message: "Ticket statistics fetched successfully.",
-//                     statistics
-//                 },
-//                 200,
-//                 {
-//                     targetType: "Ticket",
-//                     action: "get-ticket-statistics"
-//                 }
-//             );
-//         } catch (error: unknown) {
-//             const message = error instanceof Error ? error.message : String(error);
-//             logger.error(`Get ticket statistics error: ${message}`);
-//             next(error);
-//         }
-//     }
-// );
-
-// export { router as getTicketStatisticsV1Router };
+export { router as getTicketStatisticsV1Router };
