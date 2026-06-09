@@ -33,7 +33,6 @@ const ASSIGNEE_UPDATE_FIELDS = [
 const ADMIN_UPDATE_FIELDS = [
   ...ASSIGNEE_UPDATE_FIELDS,
   "assigned_to",
-  "closed_at",
 ] as const;
 
 // Statuses where reason is mandatory
@@ -73,8 +72,8 @@ router.put(
       });
 
       // Determine if current user is the assignee
-      const assignedToValues = (Array.isArray(ticket.assigned_to) ? ticket.assigned_to : [ticket.assigned_to]).
-      filter((value): value is string => typeof value === "string");
+      const assignedToValues = (Array.isArray(ticket.assigned_to) ? ticket.assigned_to : [ticket.assigned_to])
+      .filter((value): value is string => typeof value === "string");
 
       const userEmail = currentUser.email.trim().toLowerCase();
       const matchedAssignee = assignedToValues.find(
@@ -90,9 +89,7 @@ router.put(
       const rawBody = req.body as Record<string, unknown>;
 
       // Determine allowed fields based on role
-      const allowedFields = isAdmin
-        ? [...ADMIN_UPDATE_FIELDS]
-        : [...ASSIGNEE_UPDATE_FIELDS];
+      const allowedFields = isAdmin? [...ADMIN_UPDATE_FIELDS]: [...ASSIGNEE_UPDATE_FIELDS];
 
       // Non-admin assignee cannot update closed_at
       if (isUser && "closed_at" in rawBody) {
@@ -101,15 +98,10 @@ router.put(
 
       // Validate reason is provided for re_open and on_hold status changes
       const incomingStatus = rawBody["status"];
-      if (
-        typeof incomingStatus === "string" &&
-        REASON_REQUIRED_STATUSES.includes(incomingStatus as TicketStatus)
-      ) {
+      if (typeof incomingStatus === "string" && REASON_REQUIRED_STATUSES.includes(incomingStatus as TicketStatus)) {
         const reason = rawBody["reason"];
         if (!reason || (typeof reason === "string" && reason.trim() === "")) {
-          throw new BadRequestError(
-            `A reason is required when changing ticket status to "${incomingStatus}".`,
-          );
+          throw new BadRequestError(`A reason is required when changing ticket status to "${incomingStatus}".`,);
         }
       }
 
