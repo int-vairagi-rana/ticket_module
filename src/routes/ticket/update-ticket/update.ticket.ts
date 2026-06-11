@@ -23,10 +23,8 @@ const router = express.Router();
 // Fields the assignee can update
 const ASSIGNEE_UPDATE_FIELDS = [
   "status",
-  "due_date",
-  "resolved_at",
   "attachment_ids",
-  "close_at"
+  "closed_at"
 ] as const;
 
 // Fields the admin can update (assignee fields + extra admin-only fields)
@@ -53,8 +51,8 @@ router.put(
       const isAdmin = currentUser.role === (UserRole.Admin as string);
       const isUser = currentUser.role === (UserRole.User as string);
 
-      // Only admin or regular users can access this endpoint
-      if (!isAdmin && !isUser) {
+      const isSuperAdmin = currentUser.role === (UserRole.SuperAdmin as string);
+      if (!isAdmin && !isUser && !isSuperAdmin) {
         throw new AuthorizationError("You are not authorized to update tickets.");
       }
 
@@ -70,6 +68,13 @@ router.put(
           return ticket;
         },
       });
+
+      // Prevent updates on terminal tickets
+      if ([TicketStatus.CLOSED].includes(ticket.status as TicketStatus,)) {
+        throw new BadRequestError(
+         "Cannot update a closed ticket.",
+        );
+      }
 
       // Determine if current user is the assignee
       const assignedToValues = (Array.isArray(ticket.assigned_to) ? ticket.assigned_to : [ticket.assigned_to])
@@ -89,7 +94,7 @@ router.put(
       const rawBody = req.body as Record<string, unknown>;
 
       // Determine allowed fields based on role
-      const allowedFields = isAdmin? [...ADMIN_UPDATE_FIELDS]: [...ASSIGNEE_UPDATE_FIELDS];
+      const allowedFields = (isAdmin || isSuperAdmin)? [...ADMIN_UPDATE_FIELDS]: [...ASSIGNEE_UPDATE_FIELDS];
 
       // Non-admin assignee cannot update closed_at
       if (isUser && "closed_at" in rawBody) {
@@ -112,17 +117,16 @@ router.put(
 
       for (const field of allowedFields) {
         if (!allowedUpdatableColumns.has(field) || !(field in sanitizedBody)) continue;
-
-        if (field === "email" && typeof sanitizedBody[field] === "string") {
-          allowedBody[field] = (sanitizedBody[field] as string).trim().toLowerCase();
-          continue;
-        }
-
         allowedBody[field] = sanitizedBody[field];
       }
 
       if (Object.keys(allowedBody).length === 0) {
         throw new BadRequestError("Please provide at least one valid ticket field to update.");
+      }
+
+      // Update assigned_by when ticket is reassigned
+      if ("assigned_to" in allowedBody &&allowedBody["assigned_to"] !== ticket.assigned_to) {
+        allowedBody["assigned_by"] = currentUser.id;
       }
 
       // Append status history if status is being changed
@@ -134,8 +138,7 @@ router.put(
           ? new Date(lastEntry.changed_at)
           : new Date(ticket.created_at);
 
-        const reason =
-          typeof rawBody["reason"] === "string" ? rawBody["reason"].trim() : null;
+        const reason =typeof rawBody["reason"] === "string" ? rawBody["reason"].trim() : null;
 
         allowedBody["status_history"] = [
           ...history,
@@ -146,9 +149,7 @@ router.put(
             changed_by: currentUser.id,
             changed_by_name: currentUser.full_name,
             changed_at: changedAt.toISOString(),
-            stayed_in_status_seconds: Number.isNaN(lastChangedAt.getTime())
-              ? 0
-              : secondsBetween(lastChangedAt, changedAt),
+            stayed_in_status_seconds: Number.isNaN(lastChangedAt.getTime()) ? 0  : secondsBetween(lastChangedAt, changedAt),
           },
         ];
 
@@ -159,6 +160,20 @@ router.put(
         ) {
           allowedBody["resolved_at"] = changedAt.toISOString();
         }
+
+        if (
+          allowedBody["status"] === TicketStatus.CLOSED &&
+          !allowedBody["closed_at"]
+        ) {
+          allowedBody["closed_at"] = changedAt.toISOString();
+        }
+
+
+        if (allowedBody["status"] === TicketStatus.REOPEN) {
+          allowedBody["resolved_at"] = null;
+          allowedBody["closed_at"] = null;
+        }
+
 
         // Store the reason on the ticket row itself
         if (reason) {

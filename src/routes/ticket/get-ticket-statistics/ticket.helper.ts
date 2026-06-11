@@ -1,5 +1,5 @@
-import type { TicketRow } from "../interface";
-import { TicketStatus } from "../enums/ticket.enum";
+import type { TicketRow } from "../../../interface";
+import { TicketStatus  , TicketPriority} from "../../../enums/ticket.enum";
 
 const secondsToHuman = (seconds: number) => {
   const safeSeconds = Math.max(0, Math.floor(seconds));
@@ -49,13 +49,12 @@ export const buildTicketStatusMetrics = (ticket: TicketRow) => {
     from_status: null,
     to_status: ticket.status,
   });
-  const currentStatusAgeSeconds = currentStatusStartedAt
-    ? Math.max(0, Math.floor((now.getTime() - currentStatusStartedAt.getTime()) / 1000))
-    : 0;
-  const totalResolutionSeconds = resolvedAt && !Number.isNaN(createdAt.getTime()) && !Number.isNaN(resolvedAt.getTime())
-    ? Math.max(0, Math.floor((resolvedAt.getTime() - createdAt.getTime()) / 1000))
-    : null;
+  const currentStatusAgeSeconds = currentStatusStartedAt? Math.max(0, Math.floor((now.getTime() - currentStatusStartedAt.getTime()) / 1000)): 0;
+
+  const totalResolutionSeconds = resolvedAt && !Number.isNaN(createdAt.getTime()) && !Number.isNaN(resolvedAt.getTime())? Math.max(0, Math.floor((resolvedAt.getTime() - createdAt.getTime()) / 1000)): null;
+
   const onHoldSeconds = statusDurationsSeconds[TicketStatus.ON_HOLD] ?? 0;
+  
   const activeResolutionSeconds = totalResolutionSeconds === null ? null : Math.max(0, totalResolutionSeconds - onHoldSeconds);
 
   return {
@@ -125,3 +124,102 @@ export const summarizeTicketStatusMetrics = (tickets: TicketRow[]) => {
     total_on_hold_human: secondsToHuman(onHoldSeconds),
   };
 };
+
+
+export const escapeHtml = (value: unknown): string =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+export const getAssignmentEmail = (
+  ticket: TicketRow,
+  contactPersonName?: string | null,
+): string => {
+  const assigneeName = contactPersonName?.trim() || "there";
+
+  return `
+    <p>Hello ${escapeHtml(assigneeName)},</p>
+    <p>A ticket has been assigned to you.</p>
+    <p>
+      <strong>Ticket Number:</strong> ${escapeHtml(ticket.ticket_number)}<br />
+      <strong>Title:</strong> ${escapeHtml(ticket.title)}<br />
+      <strong>Priority:</strong> ${escapeHtml(ticket.priority)}<br />
+      <strong>Status:</strong> ${escapeHtml(ticket.status)}<br />
+    </p>
+    <p>
+      <strong>Plant Name:</strong> ${escapeHtml(ticket.plant_name || "N/A")}<br />
+      <strong>Component Type:</strong> ${escapeHtml(ticket.component_type || "N/A")}<br />
+      <strong>Component Name:</strong> ${escapeHtml(ticket.component_name || "N/A")}
+    </p>
+    <p>
+      <strong>Ticket Creator:</strong> ${escapeHtml(ticket.created_by_name || ticket.name || "N/A")}<br />
+      <strong>Email:</strong> ${escapeHtml(ticket.email || "N/A")}<br />
+      <strong>Phone Number:</strong> ${escapeHtml(ticket.phone_number || "N/A")}
+    </p>
+    ${ticket.description ? `<p><strong>Description:</strong><br />${escapeHtml(ticket.description)}</p>` : ""}
+    <p>Please review and take the required action.</p>
+  `;
+};
+
+
+export const OVERDUE_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000; // 3 days in ms
+
+export const buildStatistics = (tickets: TicketRow[], total: number) => {
+  const byStatus = Object.values(TicketStatus).reduce<Record<string, number>>(
+    (acc, s) => ({ ...acc, [s]: 0 }),
+    {},
+  );
+  const byPriority = Object.values(TicketPriority).reduce<Record<string, number>>(
+    (acc, p) => ({ ...acc, [p]: 0 }),
+    {},
+  );
+
+  const terminalStatuses: string[] = [TicketStatus.RESOLVED, TicketStatus.CLOSED, TicketStatus.CANCELED];
+  let overdue = 0;
+  let feedbackSubmitted = 0;
+  const feedbackRatings: number[] = [];
+
+  for (const ticket of tickets) {
+    // byStatus / byPriority counts
+    byStatus[ticket.status] = (byStatus[ticket.status] ?? 0) + 1;
+    byPriority[ticket.priority] = (byPriority[ticket.priority] ?? 0) + 1;
+
+    // overdue: open ticket AND created more than 3 days ago
+    const isOpenTicket = !terminalStatuses.includes(ticket.status);
+    const ageMs = Date.now() - new Date(ticket.created_at).getTime();
+    if (isOpenTicket && ageMs > OVERDUE_THRESHOLD_MS) {
+      overdue++;
+    }
+
+    // feedback
+    if (ticket.feedback) {
+      feedbackSubmitted++;
+      const { rating } = ticket.feedback;
+      if (typeof rating === "number" && Number.isFinite(rating)) {
+        feedbackRatings.push(rating);
+      }
+    }
+  }
+
+  const averageRating = feedbackRatings.length? Number((feedbackRatings.reduce((sum, r) => sum + r, 0) / feedbackRatings.length).toFixed(2),): null;
+
+  return {
+    total,
+    generated: total,
+    resolved: byStatus[TicketStatus.RESOLVED] ?? 0,
+    overdue,
+    feedback: {
+      submitted: feedbackSubmitted,
+      pending: total - feedbackSubmitted,
+      averageRating,
+    },
+    byStatus,
+    byPriority,
+    status_history: summarizeTicketStatusHistory(tickets),
+    status_metrics: summarizeTicketStatusMetrics(tickets),
+  };
+};
+

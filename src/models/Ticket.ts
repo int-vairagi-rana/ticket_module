@@ -35,6 +35,12 @@ export class Ticket extends BaseModel {
             foreignKey: 'id',
             select: ['full_name as assignee_name']
         },
+        {   
+            table: 'users',
+            localKey: 'assigned_by',
+            foreignKey: 'id',
+            select: ['full_name as assigned_by_name']
+        },
         {
             table: 'plants',
             localKey: 'plant_id',

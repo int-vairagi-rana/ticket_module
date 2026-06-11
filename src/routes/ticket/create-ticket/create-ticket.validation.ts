@@ -11,7 +11,7 @@ export const createTicketValidation = [
             mandatory:true,
             minLength:36,
             maxLength:36,
-            nullable:false,
+            nullable:true,
             message : "Invalid  or missing assigned to id."
         }
     ]),
@@ -37,6 +37,7 @@ export const createTicketValidation = [
             mandatory:false,
             minLength: 10,
             maxLength: 5000,
+            nullable:true,
             message: "Description must be between 10  to 5000."
         },
         {

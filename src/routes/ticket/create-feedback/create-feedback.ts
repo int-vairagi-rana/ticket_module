@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import {
   AuthorizationError,
   CacheManager,
+  Database,
   ConflictError,
   InternalServerError,
   isAuthenticated,
@@ -29,6 +30,7 @@ router.post(
   createFeedbackValidation,
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
+    const transaction = await Database.beginTransaction();
     try {
       const id = (req.params["id"] as string).trim();
       const currentUser = req.currentUser!;
@@ -95,6 +97,7 @@ router.post(
       });
       await CacheManager.delPattern("tickets:statistics:*");
       await CacheManager.set(`ticket:${id}`, freshTicket);
+      await Database.commitTransaction(transaction);
 
       res.sendResponse(
         {
@@ -116,6 +119,9 @@ router.post(
         },
       );
     } catch (error: unknown) {
+      if (transaction) {
+        await Database.rollbackTransaction(transaction);
+      }
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Create ticket feedback error: ${message}`);
       next(error);

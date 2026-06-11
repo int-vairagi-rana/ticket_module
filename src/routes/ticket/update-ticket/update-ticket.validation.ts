@@ -18,9 +18,7 @@ export const updateTicketValidation = [
       minLength: 36,
       maxLength: 36,
       message: "Invalid or missing assigned_to id.",
-    },
-
-
+    }
   ]),
   ...ExpressValidatorWrapper.stringValidator([
     {
@@ -40,11 +38,6 @@ export const updateTicketValidation = [
       name: "closed_at",
       nullable: true,
       message: "Closed at must be a valid ISO 8601 date.",
-    },
-    {
-      name: "due_date",
-      nullable: true,
-      message: "Due date must be a valid ISO 8601 date.",
     }
   ])
 ];

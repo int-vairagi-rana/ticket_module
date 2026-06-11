@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { AuthorizationError, CacheManager, isAuthenticated, logger, NotFoundError, responseHandler, UserRole, validateRequest } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
-import { buildTicketStatusMetrics } from "../../../utils/ticket-status-metrics";
+import { buildTicketStatusMetrics } from "../get-ticket-statistics/ticket.helper";
 import { getSpecificTicketValidation } from "./get-specific-ticket.validations";
 
 const router = express.Router();
@@ -20,7 +20,7 @@ router.get(
             const id = (req.params["id"] as string).trim();
             const currentUser = req.currentUser!;
 
-
+           
             const ticket = await CacheManager.getOrSet<TicketRow>({
                 key: `ticket:${id}`,
                 fetcher: async () => {
@@ -37,15 +37,26 @@ router.get(
                 }
             });
 
-            if (currentUser.role !== (UserRole.User as string)) {
-                throw new AuthorizationError("You are not authorized to view this ticket.");
-            }
-
-            if (ticket.created_by !== currentUser.id) {
+             // ── Role-based access control ─────
+            if (currentUser.role === (UserRole.User as string) && ticket.created_by !== currentUser.id) {
                 throw new NotFoundError("Ticket not found.");
             }
 
+            if (currentUser.role === (UserRole.Admin as string) && ticket.assigned_by !== currentUser.id) {
+                throw new NotFoundError("Ticket not found.");
+            }
+            
+            if (
+                currentUser.role !== (UserRole.User as string) &&
+                currentUser.role !== (UserRole.Admin as string) &&
+                currentUser.role !== (UserRole.SuperAdmin as string)
+            ) {
+                throw new AuthorizationError("You do not have permission to view this ticket.");
+            }
+
             const statusMetrics = buildTicketStatusMetrics(ticket);
+
+
             const data  = {
                 id:ticket.id,
                 ticket_number:ticket.ticket_number,
@@ -63,12 +74,13 @@ router.get(
                 component_name:ticket.component_name,
                 component_type:ticket.component_type,
                 status_history:ticket.status_history,
-                status_metrics: statusMetrics,
                 status_statistics: statusMetrics,
                 feedback: ticket.feedback,
                 attachments_ids:ticket.attachment_ids,
                 assigned_to_Id:ticket.assigned_to,
                 assigned_to_name:ticket.assignee_name,
+                assigned_by:ticket.assigned_by,
+                assigned_by_name:ticket.assigned_by_name,
                 closed_at:ticket.closed_at,
                 resolved_at:ticket.resolved_at,
                 created_at:ticket.created_at,

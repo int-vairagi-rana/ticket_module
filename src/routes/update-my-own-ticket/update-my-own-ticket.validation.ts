@@ -55,6 +55,13 @@ export const updateMyOwnTicketValidation = [
       message: "Description must be between 10 and 5000 characters.",
     },
     {
+      name: "feedback.description",
+      nullable: true,
+      minLength: 10,
+      maxLength: 5000,
+      message: "Description must be between 10 and 5000 characters.",
+    },
+    {
       name: "priority",
       nullable: true,
       customValidators: [(value: string) => Object.values(TicketPriority).includes(value as TicketPriority)],
@@ -97,6 +104,22 @@ export const updateMyOwnTicketValidation = [
       maxLength: 36,
       message: "Component type id must be valid.",
     },
+  ]),
+  ...ExpressValidatorWrapper.objectValidator([
+    {
+      name:"feedback",
+      nullable:true,
+      message:"Feedback must be an object"
+    },
+  ]),
+  ...ExpressValidatorWrapper.numberValidator([
+    {
+      name:"feedback.rating",
+      nullable:true,
+      min:1,
+      max:5,
+      message:"rating must be between 1 to 5 and int",
+    }
   ]),
   body("attachment_ids")
     .optional({ nullable: true })

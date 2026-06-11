@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import {
   AuthorizationError,
   CacheManager,
+  Database,
   InternalServerError,
   isAuthenticated,
   logger,
@@ -17,48 +18,11 @@ import {
 import type { TicketRow, PlantRow } from "../../../interface";
 import { Ticket, Plant, User } from "../../../models";
 import { assignTicketValidation } from "./assign-ticket.validation";
+import { getAssignmentEmail } from "../../ticket/get-ticket-statistics/ticket.helper";
 
 const router = express.Router();
 
 const NON_ASSIGNABLE_STATUSES = ["closed", "resolved", "cancelled"];
-
-export const escapeHtml = (value: unknown): string =>
-  String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-
-export const getAssignmentEmail = (
-  ticket: TicketRow,
-  contactPersonName?: string | null,
-): string => {
-  const assigneeName = contactPersonName?.trim() || "there";
-
-  return `
-    <p>Hello ${escapeHtml(assigneeName)},</p>
-    <p>A ticket has been assigned to you.</p>
-    <p>
-      <strong>Ticket Number:</strong> ${escapeHtml(ticket.ticket_number)}<br />
-      <strong>Title:</strong> ${escapeHtml(ticket.title)}<br />
-      <strong>Priority:</strong> ${escapeHtml(ticket.priority)}<br />
-      <strong>Status:</strong> ${escapeHtml(ticket.status)}<br />
-    </p>
-    <p>
-      <strong>Plant Name:</strong> ${escapeHtml(ticket.plant_name || "N/A")}<br />
-      <strong>Component Type:</strong> ${escapeHtml(ticket.component_type || "N/A")}<br />
-      <strong>Component Name:</strong> ${escapeHtml(ticket.component_name || "N/A")}
-    </p>
-    <p>
-      <strong>Ticket Creator:</strong> ${escapeHtml(ticket.created_by_name || ticket.name || "N/A")}<br />
-      <strong>Email:</strong> ${escapeHtml(ticket.email || "N/A")}<br />
-      <strong>Phone Number:</strong> ${escapeHtml(ticket.phone_number || "N/A")}
-    </p>
-    ${ticket.description ? `<p><strong>Description:</strong><br />${escapeHtml(ticket.description)}</p>` : ""}
-    <p>Please review and take the required action.</p>
-  `;
-};
 
 router.put(
   "/v1/ticket/:id/assign",
@@ -67,6 +31,7 @@ router.put(
   assignTicketValidation,
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
+    const transaction = await Database.beginTransaction();
     try {
       const currentUser = req.currentUser!;
       const id = (req.params["id"] as string).trim();
@@ -74,7 +39,7 @@ router.put(
       const contactPersonEmail = (body["contact_person_email"] as string).trim().toLowerCase();
 
       // 1. Admin role guard
-      if (currentUser.role !== (UserRole.Admin as string) || currentUser.role !== (UserRole.SuperAdmin as string) || ) {
+      if (currentUser.role !== (UserRole.Admin as string) || currentUser.role !== (UserRole.SuperAdmin as string) ) {
         throw new AuthorizationError("Only admin users can assign tickets.");
       }
 
@@ -98,10 +63,7 @@ router.put(
 
       // 4. Ticket status guard
       if (NON_ASSIGNABLE_STATUSES.includes(ticket.status)) {
-        throw new AppError(
-          `Cannot assign a ticket with status "${ticket.status}". Only open or in-progress tickets can be assigned.`,
-          400,
-        );
+        throw new AppError(`Cannot assign a ticket with status "${ticket.status}". Only open or in-progress tickets can be assigned.`,400);
       }
 
       // 5. Ticket already assigned guard
@@ -178,6 +140,7 @@ router.put(
       });
       await CacheManager.delPattern("tickets:statistics:*");
       await CacheManager.set(`ticket:${id}`, freshTicket); // rebuild cache with fresh data
+      await Database.commitTransaction(transaction);
 
       // 11. Send assignment notification email to contact person — non-blocking
       try {
@@ -215,6 +178,9 @@ router.put(
         },
       );
     } catch (error: unknown) {
+      if (transaction) {
+        await Database.rollbackTransaction(transaction);
+      }
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Assign ticket error: ${message}`);
       next(error);

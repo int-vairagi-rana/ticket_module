@@ -8,45 +8,27 @@ import { getMyTicketsValidation } from "./get-my-own-tickets.validation";
 
 const router = express.Router();
 
-const cleanQuery = (query: Request["query"]) => {
-    const cleaned: Record<string, unknown> = {};
-
-    for (const [key, value] of Object.entries(query)) {
-        if (value === undefined || value === null || value === "") continue;
-        cleaned[key] = value;
-    }
-
-    return cleaned;
-};
-
-const getMyTicketListCacheKey = (userId: string, query: Record<string, unknown>) => {
-    const sortedQuery = Object.keys(query)
-        .sort()
-        .reduce<Record<string, unknown>>((acc, key) => {
-            acc[key] = query[key];
-            return acc;
-        }, {});
-
-    return `tickets:list:me:${userId}:${JSON.stringify(sortedQuery)}`;
-};
-
 router.get(
     "/v1/tickets/me",
     responseHandler,
     isAuthenticated,
-    //isAuthorized("get-my-tickets"),
+    //isAuthorized("get-my-own-tickets"),
     getMyTicketsValidation,
     validateRequest,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const currentUser = req.currentUser!;
-            const query = {
-                ...cleanQuery(req.query),
-                for_user_id: currentUser.id,
+            const query : Record<string ,unknown>= {
+                ...req.query,
+                created_by : currentUser.id,
             };
 
+            const sortedQuery = JSON.stringify(
+                Object.keys(query).sort().reduce<Record<string, unknown>>((acc, k) => ({ ...acc, [k]: query[k] }), {})
+            );
+
             const result = await CacheManager.getOrSet<FindResult<TicketRow>>({
-                key: getMyTicketListCacheKey(currentUser.id, query),
+                key: `tickets:list:me:${currentUser.id}:${sortedQuery}`,
                 fetcher: async () => Ticket.find({ query, populate: true })
             });
 

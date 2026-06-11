@@ -6,6 +6,7 @@ import {
   Database,
   InternalServerError,
   isAuthenticated,
+  isAuthorized,
   logger,
   NotFoundError,
   responseHandler,
@@ -29,15 +30,13 @@ router.post(
   "/v1/ticket",
   responseHandler,
   isAuthenticated,
+  //isAuthorized("create-ticket"),
   createTicketValidation,
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
     const transaction = await Database.beginTransaction();
     try {
-      const currentUser = req.currentUser;
-      if (!currentUser) {
-        throw new AuthorizationError("Authentication required.");
-      }
+      const currentUser = req.currentUser!;
 
       if (currentUser.role !== (UserRole.User as string)) {
         throw new AuthorizationError("You are not authorised to create the ticket.");
@@ -55,10 +54,9 @@ router.post(
         status,
         priority,
         attachment_ids,
-        due_date,
       } = sanitizeObject(req.body as Record<string, unknown>);
 
-      // FIX 1: Added contact_person_name to select and type so sendEmail can use it
+      // Added contact_person_name to select and type so sendEmail can use it
       const plant = await Plant.findOne<{
         id: string;
         contact_person_email: string;
@@ -79,6 +77,7 @@ router.post(
 
       // Find assignee by plant's contact_person_email
       let assignedTo: string | null = null;
+      let assignedBY :string | null = null ;
 
       if (plant.contact_person_email) {
         const contactPersonEmail = plant.contact_person_email.trim().toLowerCase();
@@ -89,6 +88,7 @@ router.post(
         });
 
         assignedTo = assigneeUser?.id ?? null;
+        assignedBY = null ; 
       }
 
       // const componentType = await ComponentType.findOne<{ id: string }>({
@@ -103,7 +103,19 @@ router.post(
       // });
       // if (!component) throw new NotFoundError("Component not found for this plant and component type.");
 
+
+      //generate the ticket number 
+      const countResult = await Database.query<{ count: string }>(
+        "SELECT COUNT(*) as count FROM tickets",
+        [],
+        transaction
+      );
+
+      const count = Number(countResult.rows[0]?.count ?? 0);
+      const ticketNumber = `TKT-${String(count + 1).padStart(4, "0")}`;
+
       const data = {
+        ticket_number :ticketNumber,
         name: trimString(name),
         email: normalizeEmail(email),
         phone_number,
@@ -114,10 +126,10 @@ router.post(
         description: trimString(description),
         status,
         priority,
-        attachment_ids,
-        due_date,                          // FIX 3: was missing from original
+        attachment_ids,                         
         assigned_to: assignedTo,
         created_by: currentUser.id,
+        assigned_by : assignedBY
       };
 
       const ticket = await Ticket.create<TicketRow>(data);
@@ -133,7 +145,7 @@ router.post(
       await CacheManager.delPattern("tickets:statistics:*");
       await Database.commitTransaction(transaction);
 
-      // FIX 2: Only send email if a valid assignee was found
+      // Only send email if a valid assignee was found
       if (assignedTo && plant.contact_person_email) {
         try {
           await sendEmail({
@@ -149,7 +161,7 @@ router.post(
         }
       }
 
-      // FIX 4: Added return before res.sendResponse
+      // Added return before res.sendResponse
       return res.sendResponse(
         {
           message: "Ticket created successfully.",

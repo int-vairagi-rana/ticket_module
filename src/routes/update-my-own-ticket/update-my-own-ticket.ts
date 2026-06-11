@@ -13,6 +13,7 @@ import {
   sanitizeObject,
   UserRole,
   validateRequest,
+  AppError
 } from "intellisolar-common";
 import type { TicketRow } from "../../interface";
 import { Ticket } from "../../models";
@@ -20,7 +21,7 @@ import { updateMyOwnTicketValidation } from "./update-my-own-ticket.validation";
 
 const router = express.Router();
 
-const UPDATE_FIELDS = ["name","email","phone_number","priority","plant_id","component_id","component_type_id","title","description","attachment_ids",] as const;
+const UPDATE_FIELDS = ["name","email","phone_number","priority","plant_id","component_id","component_type_id","title","description","attachment_ids" ,"feedback"] as const;
 
 router.put(
   "/v1/ticket/:id/my",
@@ -64,9 +65,27 @@ router.put(
         allowedBody["email"] = allowedBody["email"].trim().toLowerCase();
       }
 
-      for (const field of ["name", "title", "description"]) {
+      for (const field of ["name", "title", "description" ,"feedback.description"]) {
         if (field in allowedBody && typeof allowedBody[field] === "string") {
           allowedBody[field] = (allowedBody[field] as string).trim();
+        }
+      }
+
+      // handle feedback object
+      if ("feedback" in allowedBody && allowedBody["feedback"] !== null && typeof allowedBody["feedback"] === "object") {
+        const feedback = allowedBody["feedback"] as Record<string, unknown>;
+
+        // trim feedback.description
+        if ("description" in feedback && typeof feedback["description"] === "string") {
+          feedback["description"] = feedback["description"].trim();
+        }
+
+        // validate feedback.rating is integer between 1-5
+        if ("rating" in feedback) {
+          const rating = feedback["rating"];
+          if (!Number.isInteger(rating) || (rating as number) < 1 || (rating as number) > 5) {
+            throw new AppError("Rating must be an integer between 1 and 5.", 400);
+          }
         }
       }
 

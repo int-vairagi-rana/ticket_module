@@ -1,4 +1,5 @@
 import type { TicketStatus, TicketPriority} from '../enums/ticket.enum';
+import {summarizeTicketStatusHistory ,summarizeTicketStatusMetrics} from "../routes/ticket/get-ticket-statistics/ticket.helper";
 
 export type TicketStatusValue = typeof TicketStatus[keyof typeof TicketStatus];
 export type TicketPriorityValue = typeof TicketPriority[keyof typeof TicketPriority];
@@ -23,6 +24,7 @@ export interface TicketRow {
   updated_by?: string | null;
   updated_by_name?: string | null;
   assigned_to?: string | string[] | null;
+  assigned_by?:string | null;
   feedback?: {
     rating: number;
     description?: string | null;
@@ -57,6 +59,7 @@ export interface TicketRow {
 
   // optional joined fields (like assignee_name, plant_name)
   assignee_name?: string;
+  assigned_by_name?:string,
   plant_name?: string;
   component_name?:string;
   component_type?:string;
@@ -66,8 +69,9 @@ export interface CreateTicketInput extends Omit<TicketRow, "id" | "created_at" |
   id?:string
 }
 
-export interface UpdateTicketInput extends Omit<TicketRow, "id" | "created_at" | "updated_at" | "created_by_name" | "updated_by_name"> {
+export interface UpdateTicketInput extends Omit<TicketRow, "id" | "created_at" | "updated_at" | "created_by_name" | "updated_by_name" | "resolved_at" | "closed_at"> {
   id?:string;
+  reason?:string,
 }
 
 export interface TicketFilters {
@@ -77,6 +81,7 @@ export interface TicketFilters {
   plant_id?: string;
   plant_name?: string;
   assigned_to?: string;
+  assigned_by?:string;
   created_by?: string;
   updated_by?: string;
   for_user_id?: string;          // shows tickets where user is assigned or created
@@ -98,9 +103,22 @@ export interface TicketFilters {
   sortOrder?: 'asc' | 'desc';
 }
 
-export interface TicketStatistics {
+
+export type TicketStatistics = {
   total: number;
+  generated: number;
+  resolved: number;
+  overdue: number;
+  feedback: {
+    submitted: number;
+    pending: number;
+    averageRating: number | null;
+  };
   byStatus: Record<TicketStatusValue, number>;
   byPriority: Record<TicketPriorityValue, number>;
-  overdue: number;                // due_date < today and status not 'resolved'/'closed'
-}
+  status_history: ReturnType<typeof summarizeTicketStatusHistory>;
+  status_metrics: ReturnType<typeof summarizeTicketStatusMetrics>;
+};
+
+
+export type TicketQuery = Record<string, unknown>;
