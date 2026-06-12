@@ -34,6 +34,7 @@ router.put(
       const id = (req.params["id"] as string).trim();
       const currentUser = req.currentUser!;
 
+      
       if (currentUser.role !== (UserRole.User as string)) {
         throw new AuthorizationError("Only users can update their own tickets.");
       }

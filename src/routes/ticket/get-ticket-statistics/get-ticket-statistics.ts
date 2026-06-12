@@ -102,7 +102,7 @@ router.get(
       logger.error(
         `Get ticket statistics error: ${error instanceof Error ? error.message : String(error)}`,
       );
-      next(error);
+      return next(error);
     }
   },
 );

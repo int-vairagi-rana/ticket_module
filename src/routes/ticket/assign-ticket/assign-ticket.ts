@@ -183,7 +183,7 @@ router.put(
       }
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Assign ticket error: ${message}`);
-      next(error);
+      return next(error);
     }
   },
 );

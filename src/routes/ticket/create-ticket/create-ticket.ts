@@ -19,7 +19,7 @@ import type { TicketRow } from "../../../interface";
 import { Plant, Ticket, User } from "../../../models";
 // import { Component, ComponentType } from "intellisolar-common";
 import { createTicketValidation } from "./create-ticket.validation";
-import { getAssignmentEmail } from "../assign-ticket/assign-ticket";
+import { getAssignmentEmail } from "../get-ticket-statistics/ticket.helper";
 
 const router = express.Router();
 
@@ -37,8 +37,12 @@ router.post(
     const transaction = await Database.beginTransaction();
     try {
       const currentUser = req.currentUser!;
+      // console.log('role from token:', JSON.stringify(currentUser.role));
+      // console.log('UserRole.User value:', JSON.stringify(UserRole.User));
 
-      if (currentUser.role !== (UserRole.User as string)) {
+      // console.log("Authorization:", req.headers.authorization);
+      // console.log("Headers:", req.headers);
+      if (currentUser.role !== (UserRole.User as string) ) {
         throw new AuthorizationError("You are not authorised to create the ticket.");
       }
 
@@ -114,8 +118,9 @@ router.post(
       const count = Number(countResult.rows[0]?.count ?? 0);
       const ticketNumber = `TKT-${String(count + 1).padStart(4, "0")}`;
 
+
       const data = {
-        ticket_number :ticketNumber,
+        //ticket_number :ticketNumber,
         name: trimString(name),
         email: normalizeEmail(email),
         phone_number,
@@ -131,6 +136,8 @@ router.post(
         created_by: currentUser.id,
         assigned_by : assignedBY
       };
+
+      //console.log('data being inserted:', JSON.stringify(data, null, 2));
 
       const ticket = await Ticket.create<TicketRow>(data);
       if (!ticket) {
@@ -181,7 +188,7 @@ router.post(
       }
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Create ticket error: ${message}`);
-      next(error);
+      return next(error);
     }
   },
 );

@@ -54,7 +54,7 @@ router.get(
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : String(error);
             logger.error(`Get my tickets error: ${message}`);
-            next(error);
+            return next(error);
 
         }
     }

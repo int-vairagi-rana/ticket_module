@@ -124,7 +124,7 @@ router.post(
       }
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Create ticket feedback error: ${message}`);
-      next(error);
+      return next(error);
     }
   },
 );

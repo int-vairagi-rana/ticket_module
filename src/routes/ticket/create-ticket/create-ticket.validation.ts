@@ -8,7 +8,7 @@ export const createTicketValidation = [
     ...ExpressValidatorWrapper.uuidValidator([
         {
             name : "assigned_to",
-            mandatory:true,
+            mandatory:false,
             minLength:36,
             maxLength:36,
             nullable:true,
@@ -72,14 +72,14 @@ export const createTicketValidation = [
     ...ExpressValidatorWrapper.uuidValidator([
         {
             name: "component_type_id",
-            mandatory:true,
+            mandatory:false,
             minLength: 36,
             maxLength: 36,
             message: "Component type id must be valid."
         },
         {
             name: "component_id",
-            mandatory: true,
+            mandatory: false,
             minLength: 36,
             maxLength: 36,
             message: "Component id must be valid."

@@ -171,7 +171,7 @@ router.get(
       logger.error(
         `Get all tickets error: ${error instanceof Error ? error.message : String(error)}`,
       );
-      next(error);
+      return next(error);
     }
   },
 );

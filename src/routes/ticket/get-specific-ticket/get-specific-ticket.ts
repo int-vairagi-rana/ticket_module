@@ -107,7 +107,7 @@ router.get(
     catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         logger.error(`Get specific ticket error: ${message}`);
-        next(error);
+        return next(error);
     }
  }
 );

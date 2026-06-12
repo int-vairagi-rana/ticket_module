@@ -12,6 +12,7 @@ import {
   sanitizeObject,
   UserRole,
   validateRequest,
+  pickFromObject,
 } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
@@ -21,17 +22,10 @@ import { updateTicketValidation } from "./update-ticket.validation";
 const router = express.Router();
 
 // Fields the assignee can update
-const ASSIGNEE_UPDATE_FIELDS = [
-  "status",
-  "attachment_ids",
-  "closed_at"
-] as const;
+const ASSIGNEE_UPDATE_FIELDS = ["status","attachment_ids","closed_at"] as const;
 
 // Fields the admin can update (assignee fields + extra admin-only fields)
-const ADMIN_UPDATE_FIELDS = [
-  ...ASSIGNEE_UPDATE_FIELDS,
-  "assigned_to",
-] as const;
+const ADMIN_UPDATE_FIELDS = [...ASSIGNEE_UPDATE_FIELDS,"assigned_to",] as const;
 
 // Statuses where reason is mandatory
 const REASON_REQUIRED_STATUSES = [TicketStatus.REOPEN , TicketStatus.ON_HOLD];
@@ -71,9 +65,7 @@ router.put(
 
       // Prevent updates on terminal tickets
       if ([TicketStatus.CLOSED].includes(ticket.status as TicketStatus,)) {
-        throw new BadRequestError(
-         "Cannot update a closed ticket.",
-        );
+        throw new BadRequestError("Cannot update a closed ticket.",);
       }
 
       // Determine if current user is the assignee
@@ -86,7 +78,7 @@ router.put(
       );
       const isAssignee = Boolean(matchedAssignee);
 
-      // Non-admin user must be the assignee
+      // user must be the assignee
       if (isUser && !isAssignee) {
         throw new AuthorizationError("You can update only tickets assigned to you.");
       }
@@ -96,7 +88,7 @@ router.put(
       // Determine allowed fields based on role
       const allowedFields = (isAdmin || isSuperAdmin)? [...ADMIN_UPDATE_FIELDS]: [...ASSIGNEE_UPDATE_FIELDS];
 
-      // Non-admin assignee cannot update closed_at
+      //  assignee cannot update closed_at
       if (isUser && "closed_at" in rawBody) {
         throw new AuthorizationError("You are not allowed to update the closed_at field.");
       }
@@ -112,20 +104,14 @@ router.put(
 
       // Build allowed update data
       const sanitizedBody = sanitizeObject(rawBody) as Record<string, unknown>;
-      const allowedUpdatableColumns = new Set(Ticket.updatableColumns);
-      const allowedBody: Record<string, unknown> = {};
-
-      for (const field of allowedFields) {
-        if (!allowedUpdatableColumns.has(field) || !(field in sanitizedBody)) continue;
-        allowedBody[field] = sanitizedBody[field];
-      }
+      const allowedBody :Record<string,unknown>= {...pickFromObject(sanitizedBody, [...allowedFields])};
 
       if (Object.keys(allowedBody).length === 0) {
-        throw new BadRequestError("Please provide at least one valid ticket field to update.");
+        throw new BadRequestError("Ticket Update successfully.");
       }
 
       // Update assigned_by when ticket is reassigned
-      if ("assigned_to" in allowedBody &&allowedBody["assigned_to"] !== ticket.assigned_to) {
+      if ("assigned_to" in allowedBody && allowedBody["assigned_to"] !== ticket.assigned_to) {
         allowedBody["assigned_by"] = currentUser.id;
       }
 
@@ -134,11 +120,9 @@ router.put(
         const changedAt = new Date();
         const history = ticket.status_history ?? [];
         const lastEntry = history[history.length - 1];
-        const lastChangedAt = lastEntry?.changed_at
-          ? new Date(lastEntry.changed_at)
-          : new Date(ticket.created_at);
+        const lastChangedAt = lastEntry ?.changed_at? new Date(lastEntry.changed_at) : new Date(ticket.created_at);
 
-        const reason =typeof rawBody["reason"] === "string" ? rawBody["reason"].trim() : null;
+        const reason = typeof sanitizedBody["reason"] === "string" ? sanitizedBody["reason"].trim() : null;
 
         allowedBody["status_history"] = [
           ...history,
@@ -154,22 +138,16 @@ router.put(
         ];
 
         // Auto-set resolved_at when status changes to resolved
-        if (
-          allowedBody["status"] === TicketStatus.RESOLVED &&
-          !allowedBody["resolved_at"]
-        ) {
+        if (allowedBody["status"] === TicketStatus.RESOLVED &&!allowedBody["resolved_at"]) {
           allowedBody["resolved_at"] = changedAt.toISOString();
         }
 
-        if (
-          allowedBody["status"] === TicketStatus.CLOSED &&
-          !allowedBody["closed_at"]
-        ) {
+        if (allowedBody["status"] === TicketStatus.CLOSED && !allowedBody["closed_at"]) {
           allowedBody["closed_at"] = changedAt.toISOString();
         }
 
 
-        if (allowedBody["status"] === TicketStatus.REOPEN) {
+        if(allowedBody["status"] === TicketStatus.REOPEN) {
           allowedBody["resolved_at"] = null;
           allowedBody["closed_at"] = null;
         }
@@ -234,7 +212,7 @@ router.put(
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Update ticket error: ${message}`);
-      next(error);
+      return next(error);
     }
   },
 );
