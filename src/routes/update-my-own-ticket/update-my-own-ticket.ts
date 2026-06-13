@@ -56,22 +56,19 @@ router.put(
       }
 
       const rawBody = req.body as Record<string,unknown>;
-       if ("status" in rawBody) {
-        throw new AuthorizationError("You are not allowed to update the status of a ticket.");
-      }
-      const santizedBody = sanitizeObject(rawBody);
-      const allowedBody = pickFromObject(santizedBody, [...UPDATE_FIELDS]) as Record<string, unknown>;
+      const sanitizedBody = sanitizeObject(rawBody);
+      const allowedBody = pickFromObject(sanitizedBody, [...UPDATE_FIELDS]) as Record<string, unknown>;
 
       if ("email" in allowedBody && typeof allowedBody["email"] === "string") {
         allowedBody["email"] = allowedBody["email"].trim().toLowerCase();
       }
 
-      for (const field of ["name", "title", "description" ,"feedback.description"]) {
+      for (const field of ["name", "title", "description"]) {
         if (field in allowedBody && typeof allowedBody[field] === "string") {
           allowedBody[field] = (allowedBody[field] as string).trim();
         }
       }
-
+     
       // handle feedback object
       if ("feedback" in allowedBody && allowedBody["feedback"] !== null && typeof allowedBody["feedback"] === "object") {
         const feedback = allowedBody["feedback"] as Record<string, unknown>;
@@ -84,7 +81,12 @@ router.put(
         // validate feedback.rating is integer between 1-5
         if ("rating" in feedback) {
           const rating = feedback["rating"];
-          if (!Number.isInteger(rating) || (rating as number) < 1 || (rating as number) > 5) {
+          if (
+            rating !== undefined &&
+            rating !== null &&
+            rating !== "" &&
+            (!Number.isInteger(rating) || (rating as number) < 1 || (rating as number) > 5)
+          ) {
             throw new AppError("Rating must be an integer between 1 and 5.", 400);
           }
         }

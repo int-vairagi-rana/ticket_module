@@ -39,7 +39,7 @@ router.put(
       const contactPersonEmail = (body["contact_person_email"] as string).trim().toLowerCase();
 
       // 1. Admin role guard
-      if (currentUser.role !== (UserRole.Admin as string) || currentUser.role !== (UserRole.SuperAdmin as string) ) {
+      if (currentUser.role !== (UserRole.Admin as string) && currentUser.role !== (UserRole.SuperAdmin as string) ) {
         throw new AuthorizationError("Only admin users can assign tickets.");
       }
 
@@ -104,11 +104,18 @@ router.put(
           select: ["id"],
         });
 
+        if (!assigneeUser) {
+          throw new NotFoundError(
+            "No user found with the plant's registered contact person email.",
+          );
+        }
+
         // 8. Assign ticket
         const updatedTicket = await Ticket.updateOne<TicketRow>({
           where: { id },
           data: {
-            assigned_to: assigneeUser?.id ?? null,
+            assigned_to: assigneeUser.id,
+            assigned_by: currentUser.id,
             updated_by: currentUser.id,
           },
         });

@@ -28,7 +28,7 @@ router.get(
             );
 
             const result = await CacheManager.getOrSet<FindResult<TicketRow>>({
-                key: `tickets:list:me:${currentUser.id}:${sortedQuery}`,
+                key: `tickets:list:v2:me:${currentUser.id}:${sortedQuery}`,
                 fetcher: async () => Ticket.find({ query, populate: true })
             });
 

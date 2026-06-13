@@ -21,7 +21,6 @@ const ALLOWED_SORT_FIELDS = [
   "updated_at",
   "priority",
   "status",
-  "title",
   "resolved_at",
   "assigned_by",
   "assigne_to",
@@ -93,7 +92,7 @@ const buildCacheKey = (role: string, userId: string, query: Record<string, unkno
       return acc;
     }, {});
 
-  return `tickets:list:${role}:${userId}:${JSON.stringify(sortedQuery)}`;
+  return `tickets:list:v2:${role}:${userId}:${JSON.stringify(sortedQuery)}`;
 };
 
 

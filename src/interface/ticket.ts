@@ -84,7 +84,6 @@ export interface TicketFilters {
   assigned_by?:string;
   created_by?: string;
   updated_by?: string;
-  for_user_id?: string;          // shows tickets where user is assigned or created
   created_from?: Date;
   created_to?: Date;
   updated_at?: Date;

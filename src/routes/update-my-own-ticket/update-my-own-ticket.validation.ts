@@ -22,6 +22,10 @@ const isStringArrayOrUpdateOp = (value: unknown) => {
 };
 
 export const updateMyOwnTicketValidation = [
+  body("status")
+    .not()
+    .exists()
+    .withMessage("You are not authorised to update the ticket status."),
   ...ExpressValidatorWrapper.uuidValidator([
     {
       name: "id",
@@ -66,7 +70,7 @@ export const updateMyOwnTicketValidation = [
       nullable: true,
       customValidators: [(value: string) => Object.values(TicketPriority).includes(value as TicketPriority)],
       message: "Priority must be a valid ticket priority.",
-    },
+    }
   ]),
   ...ExpressValidatorWrapper.emailValidator([
     {
