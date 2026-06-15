@@ -37,13 +37,13 @@ router.post(
     const transaction = await Database.beginTransaction();
     try {
       const currentUser = req.currentUser!;
-      console.log('role from token:', JSON.stringify(currentUser.role));
-      console.log('UserRole.User value:', JSON.stringify(UserRole.User));
-
-      console.log("Authorization:", req.headers.authorization);
-      console.log("Headers:", req.headers);
-      if (currentUser.role !== (UserRole.User as string) ) {
-        throw new AuthorizationError("You are not authorised to create the ticket.");
+      
+      const user = await User.findOne<TicketRow>({
+        where: { id: currentUser.id, is_active: true },
+      });
+    
+      if (!user) {
+        throw new NotFoundError("User not found.");
       }
 
       const {

@@ -53,6 +53,7 @@ const buildTicketQuery = (reqQuery: Request["query"], scopeOverrides: Record<str
   if (reqQuery["assigned_to"])     query["assigned_to"] = reqQuery["assigned_to"];
   if (reqQuery["assigned_by"])     query["assigned_by"] = reqQuery["assigned_by"];
   if (reqQuery["created_by"])      query["created_by"] = reqQuery["created_by"];
+  if (reqQuery["updated_by"])      query["updated_by"] = reqQuery["updated_by"];
   if (reqQuery["feedback_rating"]) query["feedback_rating"] = Number(reqQuery["feedback_rating"]);
 
   // boolean filters
