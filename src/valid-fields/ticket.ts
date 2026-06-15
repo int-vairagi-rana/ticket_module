@@ -194,7 +194,7 @@ const ticketBase: PartialFieldConfig[] = [
         filterable:false,
         searchable: false,
         includeInList: true,
-        includeInDetail:false,
+        includeInDetail:true,
         required:false,
         allowArrayFilter:false,
 
