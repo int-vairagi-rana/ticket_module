@@ -63,10 +63,14 @@ router.put(
         },
       });
 
-      // Prevent updates on terminal tickets
-      if ([TicketStatus.CLOSED].includes(ticket.status as TicketStatus,)) {
-        throw new BadRequestError("Cannot update a closed ticket.",);
+       if ([TicketStatus.CLOSED].includes(ticket.status as TicketStatus)) {
+      const incomingStatus = (req.body as Record<string, unknown>)["status"];
+
+       // Only allow re_open from closed, nothing else
+      if (incomingStatus !== TicketStatus.REOPEN) {
+        throw new BadRequestError("Cannot update a closed ticket.");
       }
+    }
 
       // Determine if current user is the assignee
       const assignedToValues = (Array.isArray(ticket.assigned_to) ? ticket.assigned_to : [ticket.assigned_to])
@@ -102,6 +106,8 @@ router.put(
         }
       }
 
+
+
       // Build allowed update data
       const sanitizedBody = sanitizeObject(rawBody) as Record<string, unknown>;
       const allowedBody :Record<string,unknown>= {...pickFromObject(sanitizedBody, [...allowedFields])};
@@ -124,7 +130,7 @@ router.put(
 
         const reason = typeof sanitizedBody["reason"] === "string" ? sanitizedBody["reason"].trim() : null;
 
-        allowedBody["status_history"] = [
+        allowedBody["status_history"] = JSON.stringify([
           ...history,
           {
             from_status: ticket.status,
@@ -135,7 +141,7 @@ router.put(
             changed_at: changedAt.toISOString(),
             stayed_in_status_seconds: Number.isNaN(lastChangedAt.getTime()) ? 0  : secondsBetween(lastChangedAt, changedAt),
           },
-        ];
+        ]);
 
         // Auto-set resolved_at when status changes to resolved
         if (allowedBody["status"] === TicketStatus.RESOLVED &&!allowedBody["resolved_at"]) {
@@ -153,11 +159,23 @@ router.put(
         }
 
 
-        // Store the reason on the ticket row itself
-        if (reason) {
-          allowedBody["reason"] = reason;
-        }
+      // Store the reason on the ticket row only for statuses that require it
+      if (reason && REASON_REQUIRED_STATUSES.includes(allowedBody["status"] as TicketStatus)) {
+        allowedBody["reason"] = reason;
+      } else {
+        // Explicitly clear reason if status doesn't require it
+        allowedBody["reason"] = null;
       }
+      }
+
+      // console.log("Raw body:", JSON.stringify(req.body));
+      // console.log("Content-Type:", req.headers["content-type"]);
+
+      // console.log("Existing:", ticket.status_history);
+      // console.log("Type:", typeof ticket.status_history);
+
+      // console.log("New status history:", allowedBody["status_history"]);
+      // console.log("Stringified:", JSON.stringify(allowedBody["status_history"], null, 2));
 
       const updatedTicket = await Ticket.updateOne<TicketRow>({
         where: {

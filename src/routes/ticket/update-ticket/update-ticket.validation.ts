@@ -14,7 +14,7 @@ export const updateTicketValidation = [
     {
       name: "assigned_to",
       param: true,
-      mandatory: true,
+      mandatory: false,
       minLength: 36,
       maxLength: 36,
       message: "Invalid or missing assigned_to id.",
@@ -27,6 +27,11 @@ export const updateTicketValidation = [
       customValidators: [(value: string) => Object.values(TicketStatus).includes(value as TicketStatus)],
       message: "Status must be a valid ticket status.",
     },
+    {
+      name:"reason",
+      nullable:true,
+      message:"Reason must be a valid string. "
+    }
   ]),
   ...ExpressValidatorWrapper.dateValidator([
     {
