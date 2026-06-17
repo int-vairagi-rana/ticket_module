@@ -125,7 +125,7 @@ const ticketBase: PartialFieldConfig[] = [
         displayName: "Title",
         internalName: "title",
         type: ValueTypesEnum.STRING,
-        sortable: false,
+        sortable: true,
         filterable: false,
         searchable: true,
         required: true,

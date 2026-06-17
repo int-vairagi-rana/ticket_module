@@ -80,8 +80,6 @@ export interface TicketFilters {
   priority?: TicketPriorityValue;
   plant_id?: string;
   plant_name?: string;
-  assigned_to?: string;
-  assigned_by?:string;
   created_by?: string;
   updated_by?: string;
   created_from?: Date;
@@ -90,6 +88,7 @@ export interface TicketFilters {
   updated_from?: Date;
   updated_to?: Date;
   has_feedback?: boolean;
+  has_attachments?:boolean;
   feedback_rating?: number;
   overdue?: boolean;
   unassigned?: boolean;

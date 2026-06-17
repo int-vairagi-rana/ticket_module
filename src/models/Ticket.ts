@@ -20,7 +20,7 @@ export class Ticket extends BaseModel {
     static readonly detailPopulateJoins: PopulateOption[] = [
         {
             table: 'users',
-            localKey: 'created_by',
+            localKey: 'created_by', 
             foreignKey: 'id',
             select: ['full_name as created_by_name']
         },
@@ -143,6 +143,7 @@ export class Ticket extends BaseModel {
                     ? value.split(",").map((item) => item.trim()).filter(Boolean)
                     : [value];
 
+
             if (valuesToFilter.length === 1) {
                 where.push(`${alias}."${column}" = $${index++}`);
                 values.push(valuesToFilter[0]);
@@ -152,7 +153,6 @@ export class Ticket extends BaseModel {
             where.push(`${alias}."${column}" = ANY($${index++})`);
             values.push(valuesToFilter);
         };
-
         [
             "id",
             "ticket_number",
@@ -165,7 +165,7 @@ export class Ticket extends BaseModel {
             "assigned_by",
             "created_by",
             "updated_by",
-            "resolved_at",
+            "resolve_at",
             "due_date",
         ].forEach(addEqualFilter);
 

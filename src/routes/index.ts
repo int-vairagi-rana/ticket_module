@@ -11,6 +11,7 @@ import { getTicketStatisticsV1Router } from "./ticket/get-ticket-statistics/get-
 import { assignTicketV1Router } from "./ticket/assign-ticket/assign-ticket";
 import { updateTicketV1Router } from "./ticket/update-ticket/update.ticket";
 import { updateMyOwnTicketV1Router } from "./update-my-own-ticket/update-my-own-ticket";
+import { deleteMyOwnTicketV1Router } from "./ticket/delete-my-own-ticket/delete-my-own-ticket";
 const router = express.Router();
 
 router.use(commissionPlantV1Router);
@@ -25,5 +26,6 @@ router.use(assignTicketV1Router);
 router.use(updateMyOwnTicketV1Router);
 router.use(updateTicketV1Router);
 router.use(getSpecificTicketV1Router);
+router.use(deleteMyOwnTicketV1Router);
 
 export default router;

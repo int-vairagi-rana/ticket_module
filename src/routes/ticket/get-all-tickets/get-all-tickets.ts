@@ -19,13 +19,16 @@ const router = express.Router();
 const ALLOWED_SORT_FIELDS = [
   "created_at",
   "updated_at",
+  "resolved_at",
   "priority",
   "status",
-  "resolved_at",
-  "assigned_by",
-  "assigne_to",
+  "title",
+  "name",
+  "email",
   "created_by",
   "updated_by",
+  "assigned_to",
+  "assined_by",
   "plant_id",
   "compoent_type_id",
   "component_id"
@@ -50,6 +53,7 @@ const buildTicketQuery = (reqQuery: Request["query"], scopeOverrides: Record<str
   if (reqQuery["status"])          query["status"] = reqQuery["status"];
   if (reqQuery["priority"])        query["priority"] = reqQuery["priority"];
   if (reqQuery["plant_id"])        query["plant_id"] = reqQuery["plant_id"];
+  if (reqQuery["component_id"])        query["component_id"] = reqQuery["compoent_id"];
   if (reqQuery["assigned_to"])     query["assigned_to"] = reqQuery["assigned_to"];
   if (reqQuery["assigned_by"])     query["assigned_by"] = reqQuery["assigned_by"];
   if (reqQuery["created_by"])      query["created_by"] = reqQuery["created_by"];
@@ -60,6 +64,8 @@ const buildTicketQuery = (reqQuery: Request["query"], scopeOverrides: Record<str
   if (reqQuery["unassigned"] === "true")    query["unassigned"] = true;
   if (reqQuery["has_feedback"] === "true")  query["has_feedback"] = true;
   if (reqQuery["has_feedback"] === "false") query["has_feedback"] = false;
+  if (reqQuery["has_attachments"] === "true") query["has_attachements"] = true;
+  if (reqQuery["has_attachments"] === "false") query["has_attachements"] = false;
   if (reqQuery["overdue"] === "true")       query["overdue"] = true;
 
   // date ranges
@@ -177,3 +183,4 @@ router.get(
 );
 
 export { router as getAllTicketsV1Router };
+
