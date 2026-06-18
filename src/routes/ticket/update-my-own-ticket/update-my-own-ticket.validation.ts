@@ -1,6 +1,6 @@
 import { body } from "express-validator";
 import { ExpressValidatorWrapper } from "intellisolar-common";
-import { TicketPriority } from "../../enums/ticket.enum";
+import { TicketPriority } from "../../../enums/ticket.enum";
 
 
 const isArrayUpdateOp = (value: unknown) => {

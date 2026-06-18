@@ -15,8 +15,8 @@ import {
   validateRequest,
   AppError
 } from "intellisolar-common";
-import type { TicketRow } from "../../interface";
-import { Ticket } from "../../models";
+import type { TicketRow } from "../../../interface";
+import { Ticket } from "../../../models";
 import { updateMyOwnTicketValidation } from "./update-my-own-ticket.validation";
 
 const router = express.Router();

@@ -10,7 +10,7 @@ import { getAllTicketsV1Router } from "./ticket/get-all-tickets/get-all-tickets"
 import { getTicketStatisticsV1Router } from "./ticket/get-ticket-statistics/get-ticket-statistics";
 import { assignTicketV1Router } from "./ticket/assign-ticket/assign-ticket";
 import { updateTicketV1Router } from "./ticket/update-ticket/update.ticket";
-import { updateMyOwnTicketV1Router } from "./update-my-own-ticket/update-my-own-ticket";
+import { updateMyOwnTicketV1Router } from "./ticket/update-my-own-ticket/update-my-own-ticket";
 import { deleteMyOwnTicketV1Router } from "./ticket/delete-my-own-ticket/delete-my-own-ticket";
 const router = express.Router();
 

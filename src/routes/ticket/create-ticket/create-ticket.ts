@@ -13,6 +13,7 @@ import {
   sanitizeObject,
   sendEmail,
   UserRole,
+  UserRow,
   validateRequest,
 } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
@@ -38,7 +39,7 @@ router.post(
     try {
       const currentUser = req.currentUser!;
       
-      const user = await User.findOne<TicketRow>({
+      const user = await User.findOne<UserRow>({
         where: { id: currentUser.id, is_active: true },
       });
     
