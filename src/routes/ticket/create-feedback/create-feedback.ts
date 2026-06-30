@@ -1,0 +1,161 @@
+import express from "express";
+import type { NextFunction, Request, Response } from "express";
+import {
+  AuthorizationError,
+  CacheManager,
+  Database,
+  ConflictError,
+  InternalServerError,
+  isAuthenticated,
+  logger,
+  NotFoundError,
+  responseHandler,
+  sanitizeObject,
+  UserRole,
+  validateRequest,
+  isAuthorized
+} from "intellisolar-common";
+import type { TicketRow } from "../../../interface";
+import { Ticket } from "../../../models";
+import { TicketStatus } from "../../../enums/ticket.enum";
+import { createFeedbackValidation } from "./create-feedback.validation";
+import { notifyUsers } from "../../../utils/notify-users-utils";
+
+const router = express.Router();
+
+const trimString = (value: unknown) => (typeof value === "string" ? value.trim() : value);
+const normalizeUserIds = (value: string | string[] | null | undefined) =>
+  (Array.isArray(value) ? value : [value]).filter((userId): userId is string => typeof userId === "string" && userId.trim() !== "");
+
+router.post(
+  "/v1/ticket/:id/feedback",
+  responseHandler,
+  isAuthenticated,
+  isAuthorized('create-feedback'),
+  createFeedbackValidation,
+  validateRequest,
+  async (req: Request, res: Response, next: NextFunction) => {
+    const transaction = await Database.beginTransaction();
+    try {
+      const id = (req.params["id"] as string).trim();
+      const currentUser = req.currentUser!;
+
+      const ticket = await Ticket.findOne<TicketRow>({
+        where: { id },
+        populate: Ticket.detailPopulateJoins,
+      });
+
+      if (!ticket) {
+        throw new NotFoundError("Ticket not found.");
+      }
+
+      if (ticket.created_by !== currentUser.id) {
+        throw new AuthorizationError("You can give feedback only for tickets created by you.");
+      }
+
+      if (ticket.status !== (TicketStatus.RESOLVED as string)) {
+        throw new ConflictError("Feedback can be given only after the ticket is resolved successfully.");
+      }
+
+      if (ticket.feedback) {
+        throw new ConflictError("Feedback has already been submitted for this ticket.");
+      }
+
+      const body = req.body as Record<string, unknown>;
+      const description = trimString(body["description"]);
+      const feedback = {
+        rating: Number(body["rating"]),
+        description: typeof description === "string" ? description : null,
+        created_by: currentUser.id,
+        created_at: new Date().toISOString(),
+      };
+
+      const updatedTicket = await Ticket.updateOne<TicketRow>({
+        where: { id, created_by: currentUser.id, status: TicketStatus.RESOLVED },
+        data: {
+          feedback,
+          updated_by: currentUser.id,
+        },
+      });
+
+      if (!updatedTicket) {
+        throw new InternalServerError("Failed to give feedback, please try again later.");
+      }
+
+      const freshTicket = await Ticket.findOne<TicketRow>({
+        where: { id },
+        populate: Ticket.detailPopulateJoins,
+      });
+
+      if (!freshTicket) {
+        throw new InternalServerError("Failed to retrieve updated ticket details.");
+      }
+
+      await CacheManager.invalidateMany({
+        ids: [id],
+        baseKey: "ticket",
+        listPattern: "tickets:list:*",
+      });
+      await CacheManager.delPattern("tickets:statistics:*");
+      await CacheManager.set(`ticket:${id}`, freshTicket);
+      await Database.commitTransaction(transaction);
+
+      const recipientIds = new Set<string>([
+          ...normalizeUserIds(ticket.assigned_to),
+          ...(ticket.assigned_by ? [ticket.assigned_by] : []),
+      ]);
+      recipientIds.delete(currentUser.id);
+      console.log("NOTIFY DEBUG — recipientIds:", Array.from(recipientIds));
+
+      if (recipientIds.size > 0) {
+          try {
+            await notifyUsers({
+              userIds: Array.from(recipientIds),
+              title: `Feedback received for Ticket #${freshTicket.ticket_number}`,
+              body: feedback.description
+                ? feedback.description.slice(0, 120)
+                : `Rating: ${feedback.rating}/5`,
+              data: {
+                ticketId: id,
+                ticketNumber: freshTicket.ticket_number,
+                type: "TICKET_FEEDBACK",
+                priority: freshTicket.priority,
+              },
+            });
+          } catch (notifyError) {
+            const notifyMsg = notifyError instanceof Error ? notifyError.message : String(notifyError);
+            logger.warn(`Feedback notification could not be enqueued for ticket #${freshTicket.ticket_number}: ${notifyMsg}`);
+          }
+        }
+
+      res.sendResponse(
+        {
+          message: "Feedback submitted successfully.",
+          ticket: freshTicket,
+        },
+        201,
+        {
+          targetType: "Ticket",
+          targetId: id,
+          action: "create-ticket-feedback",
+          oldData: ticket,
+          newData: freshTicket,
+          modifiedProperties: {
+            feedback: freshTicket.feedback,
+            updated_by: freshTicket.updated_by,
+            updated_at: freshTicket.updated_at,
+          },
+        },
+      );
+    } catch (error: unknown) {
+      if (transaction) {
+        await Database.rollbackTransaction(transaction);
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Create ticket feedback error: ${message}`);
+      return next(error);
+    }
+  },
+);
+
+export { router as createFeedbackV1Router };
