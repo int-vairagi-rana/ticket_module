@@ -108,7 +108,7 @@ const ticketBase: PartialFieldConfig[] = [
         displayName: "Title",
         internalName: "title",
         type: ValueTypesEnum.STRING,
-        sortable:true,
+        sortable:false,
         filterable: false,
         searchable: true,
         required: true
@@ -138,7 +138,7 @@ const ticketBase: PartialFieldConfig[] = [
         displayName: "Source",
         internalName: "source",
         type: ValueTypesEnum.STRING,
-        sortable:false,
+        sortable:true,
         filterable: true,
         searchable: false,
         allowArrayFilter:true,

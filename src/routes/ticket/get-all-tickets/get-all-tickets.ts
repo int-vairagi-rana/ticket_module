@@ -33,7 +33,7 @@ router.get(
          component_id , compoent_type_id , created_by , updated_by , created_from , updated_from , created_by_name ,
          updated_by_name ,resolved_from , resolved_to , has_attachements , has_feedback , overdue , unassigned , source , assigned_to ,
          assigned_by , feedback_rating 
-       } = req.query; 
+       } = req.query ; 
 
       const Query :Record<string,any> ={
         page , 

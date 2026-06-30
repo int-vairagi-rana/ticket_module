@@ -1,8 +1,9 @@
 import { ExpressValidatorWrapper } from "intellisolar-common";
-import { TicketPriority,  TicketStatus } from "../../../enums/ticket.enum";
+import { TicketPriority,  TicketSource,  TicketStatus } from "../../../enums/ticket.enum";
 
 const isValidTicketStatus = (value: string) => Object.values(TicketStatus).includes(value as TicketStatus);
 const isValidTicketPriority = (value: string) => Object.values(TicketPriority).includes(value as TicketPriority);
+const isValidTicketSource = (value :string) => Object.values(TicketSource).includes(value as TicketSource);
 
 
 export const createTicketForChatbootValidation = [
@@ -63,6 +64,7 @@ export const createTicketForChatbootValidation = [
         {
             name: "source",
             mandatory: false,
+            customValidators : [isValidTicketSource],
             nullable:false,
             message: "Source must be a valid ticket source."
         }

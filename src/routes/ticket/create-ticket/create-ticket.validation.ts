@@ -1,9 +1,10 @@
 import { ExpressValidatorWrapper } from "intellisolar-common";
-import { TicketPriority, TicketStatus } from "../../../enums/ticket.enum";
+import { TicketPriority, TicketSource, TicketStatus } from "../../../enums/ticket.enum";
 import {body} from "express-validator";
 
 const isValidTicketStatus = (value: string) => Object.values(TicketStatus).includes(value as TicketStatus);
 const isValidTicketPriority = (value: string) => Object.values(TicketPriority).includes(value as TicketPriority);
+const isValidTicketSource = (value :string) => Object.values(TicketSource).includes(value as TicketSource);
 
 export const createTicketValidation = [
     ...ExpressValidatorWrapper.uuidValidator([
@@ -75,6 +76,13 @@ export const createTicketValidation = [
             customValidators: [isValidTicketPriority],
             nullable:false,
             message: "Priority must be a valid ticket priority."
+        }, 
+        {
+            name: "source",
+            mandatory: false,
+            customValidators: [isValidTicketSource],
+            nullable:false,
+            message: "Source must be a valid ticket source."
         }
     ]),
     ...ExpressValidatorWrapper.emailValidator([

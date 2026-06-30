@@ -18,7 +18,10 @@ import { presignCommentFileV1Router } from "./comments/add-comment-attachments/p
 import { confirmCommentFileV1Router } from "./comments/add-comment-attachments/confirm-comment-file";
 import { createTicketForChatbootV1Router } from "./ticket/create-Ticket-for-Chatboot/create-Ticket-for-Chatboot";
 import { reAssignTicketV1Router } from "./ticket/re-assign.ticket/re-assign.ticket";
-import { deleteTicketsV1Router  } from "./ticket/delete-ticket/delete-ticket";
+import { deleteTicketV1Router  } from "./ticket/delete-ticket/delete-ticket";
+import { bulkDeleteMyOwnTicketValidation } from "./ticket/bulk-delete/bulk-delete-validation";
+import { bulkAssignTicketV1Router } from "./ticket/bulk-assignment-of-ticket/bulk-assignmtient-of-ticket";
+
 const router = express.Router();
 
 router.use(commissionPlantV1Router);
@@ -32,10 +35,12 @@ router.use(getAllTicketsV1Router);
 router.use(getMyOwnTicketsV1Router);
 router.use(getSpecificTicketV1Router);
 router.use(assignTicketV1Router);
+router.use(bulkAssignTicketV1Router);
 router.use(reAssignTicketV1Router);
 router.use(updateMyOwnTicketV1Router);
 router.use(updateTicketV1Router);
-router.use(deleteTicketsV1Router );
+router.use(deleteTicketV1Router );
+router.use(bulkDeleteMyOwnTicketValidation);
 
 //chatboot ticket routes 
 router.use(getSpecificTicketByTicketNumberV1Router);

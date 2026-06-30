@@ -37,20 +37,11 @@ router.delete(
         throw new AppError("Ticket not found.", 404);
       }
 
-      if (
-        currentUser.role !== (UserRole.Admin as string) &&
-        currentUser.role !== (UserRole.SuperAdmin as string)
-      ) {
-        throw new AuthorizationError("You do not have permission to delete this ticket.");
-      }
-
-
       if (ticket.status === "closed" || ticket.status === "resolved" ) {
         throw new AppError("Closed or Resolved tickets cannot be deleted.", 400);
       }
 
       await Ticket.deleteOne({where : {id }});
-
 
       await CacheManager.invalidateMany({
         ids: [id],

@@ -20,7 +20,7 @@ import type { PlantRow, TicketRow } from "../../../interface";
 import { Plant, Ticket , User} from "../../../models";
 import { createTicketValidation } from "./create-ticket.validation";
 import { getAssignmentEmail } from "../../../utils";
-import { TicketStatus , TicketPriority } from "../../../enums";
+import { TicketStatus , TicketPriority , TicketSource } from "../../../enums";
 
 
 const router = express.Router();
@@ -50,6 +50,7 @@ router.post(
         title,
         description,
         status,
+        source,
         priority,
         attachments_ids,
         assigned_to
@@ -77,16 +78,25 @@ router.post(
       }
 
       let assignedTo: string | null = null;
-      let assignedBY :string | null = null ;
+      let assignedBY :string | null = null;
 
       if (plant.contact_person_email) {
         const contactPersonEmail = plant.contact_person_email.toLowerCase();
 
-        const assigneeUser = await User.findOne<UserRow>({
-          where: { email: contactPersonEmail },
-          select: ["id" , "role"],
-        });
-
+        const assigneeUser = await CacheManager.getOrSet<UserRow>({
+          key:`user:${contactPersonEmail}`,
+          fetcher:async()=>{
+            const assigneeUser = await User.findOne<UserRow>({
+            where: { email: contactPersonEmail },
+            select: ["id" , "role"],
+          });
+          if(!assigneeUser){
+            throw new NotFoundError("Assignee user not found.");
+          }
+          return assigneeUser;
+        }
+      });
+        
         if (assigneeUser?.role === UserRole.Admin) {
           assignedTo = assigneeUser.id;
           assignedBY = currentUser.id;
@@ -159,7 +169,7 @@ router.post(
         title: trimString(title),
         description: trimString(description),
         status: (status as TicketStatus) ?? "open",
-        source,
+        source:(source as TicketSource) ?? "portal",
         priority:(priority as TicketPriority) ?? "medium",
         attachments_ids,                         
         assigned_to: assignedTo,

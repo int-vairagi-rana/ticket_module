@@ -1,14 +1,21 @@
 import { ExpressValidatorWrapper } from "intellisolar-common";
 import { TicketPriority ,  TicketStatus } from "../../../enums/ticket.enum";
 
-const ALLOWED_SORT_FIELDS = ['created_at', 'updated_at', 'status', 'priority', 'plant_name','resolved_at'];
 
 export const getAllTicketsValidation = [
    ...ExpressValidatorWrapper.uuidValidator([
     {
         name:"assigned_to",
         query: true,
-        nullable:true,
+        nullable: true,
+        maxLength:36,
+        minLength:36,
+        message:"Invalid user ID format."
+    },
+     {
+        name:"assigned_by",
+        query: true,
+        nullable: true,
         maxLength:36,
         minLength:36,
         message:"Invalid user ID format."

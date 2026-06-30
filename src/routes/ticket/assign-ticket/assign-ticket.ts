@@ -34,12 +34,11 @@ router.put(
   assignTicketValidation,
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
-    const transaction = await Database.beginTransaction();
     try {
       const currentUser = req.currentUser!;
-      const id = (req.params["id"] as string).trim();
+      const id = (req.params["id"] as string);
       const body = req.body as Record<string, unknown>;
-      const userId = (body["user_id"] as string).trim();
+      const adminId = (body["admin_id"] as string);
 
 
       const ticket = await CacheManager.getOrSet<TicketRow>({
@@ -66,16 +65,23 @@ router.put(
           "Ticket is already assigned. Please unassign it first before reassigning.",
         );
       }
+ 
+      const assigneeUser = await CacheManager.getOrSet<UserRow>({
+        key: `user:${adminId}`,
+        fetcher: async () => {
+          const assigneeUser = await User.findOne<UserRow>({
+            where: { id: adminId, is_active: true },
+            select: ["id", "name", "email", "role", "plant_ids"],
+          });
 
-      const assigneeUser = await User.findOne<UserRow>({
-        where: { id: userId, is_active: true },
-        select: ["id", "name", "email", "role", "plant_ids"],
+          if (!assigneeUser) {
+            throw new NotFoundError("No active user found with the provided user_id.");
+          }
+
+          return assigneeUser;
+        },
       });
-
-      if (!assigneeUser) {
-        throw new NotFoundError("No active user found with the provided user_id.");
-      }
-
+     
       if (assigneeUser.role !== (UserRole.Admin as string)) {
         throw new AuthorizationError("Tickets can only be assigned to users with the 'Admin' role.");
       }
@@ -91,18 +97,24 @@ router.put(
 
       if (!updatedTicket) {
         throw new InternalServerError("Failed to assign ticket, please try again later.");
-      }
+      };
 
-      const freshTicket = await Ticket.findOne<TicketRow>({
-        where: { id },
-        populate: Ticket.detailPopulateJoins,
+      const freshTicket = await CacheManager.getOrSet<TicketRow>({
+        key:`ticket:${id}`,
+        fetcher :async()=>{
+           const freshTicket = await Ticket.findOne<TicketRow>({
+            where: { id },
+            populate: Ticket.detailPopulateJoins,
+          });
+
+          if (!freshTicket) {
+            throw new InternalServerError("Failed to retrieve updated ticket details.");
+          }
+
+          return freshTicket;
+        }
       });
-
-      if (!freshTicket) {
-        throw new InternalServerError("Failed to retrieve updated ticket details.");
-      }
-
-
+     
       await CacheManager.invalidateMany({
         ids: [id],
         baseKey: "ticket",
@@ -110,7 +122,7 @@ router.put(
       });
       await CacheManager.delPattern("tickets:statistics:*");
       await CacheManager.set(`ticket:${id}`, freshTicket);
-      await Database.commitTransaction(transaction);
+     
 
       try {
         const componentDetails =
@@ -161,9 +173,6 @@ router.put(
         },
       );
     } catch (error: unknown) {
-      if (transaction) {
-        await Database.rollbackTransaction(transaction);
-      }
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Assign ticket error: ${message}`);
       return next(error);

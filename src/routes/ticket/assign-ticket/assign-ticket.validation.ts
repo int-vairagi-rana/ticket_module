@@ -6,14 +6,12 @@ export const assignTicketValidation = [
             name: "id",
             param: true,
             mandatory: true,
-            nullable:false,
             message: "Invalid or missing ticket id."
         },
         {
-            name: "user_id",
+            name: "admin_id",
             mandatory: true,
-            nullable:false,
-            message: "Invalid or missing user id."
+            message: "Invalid or missing admin id."
         },
     ])
 ];

@@ -3,15 +3,12 @@ import type { NextFunction, Request, Response } from "express";
 import {
   AuthorizationError,
   CacheManager,
-  Database,
   ConflictError,
   InternalServerError,
   isAuthenticated,
   logger,
   NotFoundError,
   responseHandler,
-  sanitizeObject,
-  UserRole,
   validateRequest,
   isAuthorized
 } from "intellisolar-common";
@@ -35,19 +32,24 @@ router.post(
   createFeedbackValidation,
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
-    const transaction = await Database.beginTransaction();
     try {
-      const id = (req.params["id"] as string).trim();
+      const id = (req.params["id"] as string);
       const currentUser = req.currentUser!;
 
-      const ticket = await Ticket.findOne<TicketRow>({
-        where: { id },
-        populate: Ticket.detailPopulateJoins,
-      });
+      const ticket = await CacheManager.getOrSet<TicketRow>({
+        key: `ticket:${id}`,
+        fetcher: async () => {
+          const ticket = await Ticket.findOne<TicketRow>({
+            where: { id },
+            populate: Ticket.detailPopulateJoins,
+          });
 
-      if (!ticket) {
-        throw new NotFoundError("Ticket not found.");
-      }
+          if (!ticket) {
+            throw new NotFoundError("Ticket not found.");
+          }
+          return ticket;
+        }
+      })
 
       if (ticket.created_by !== currentUser.id) {
         throw new AuthorizationError("You can give feedback only for tickets created by you.");
@@ -98,35 +100,34 @@ router.post(
       });
       await CacheManager.delPattern("tickets:statistics:*");
       await CacheManager.set(`ticket:${id}`, freshTicket);
-      await Database.commitTransaction(transaction);
+
 
       const recipientIds = new Set<string>([
-          ...normalizeUserIds(ticket.assigned_to),
-          ...(ticket.assigned_by ? [ticket.assigned_by] : []),
+        ...normalizeUserIds(ticket.assigned_to),
+        ...(ticket.assigned_by ? [ticket.assigned_by] : []),
       ]);
       recipientIds.delete(currentUser.id);
-      console.log("NOTIFY DEBUG — recipientIds:", Array.from(recipientIds));
 
       if (recipientIds.size > 0) {
-          try {
-            await notifyUsers({
-              userIds: Array.from(recipientIds),
-              title: `Feedback received for Ticket #${freshTicket.ticket_number}`,
-              body: feedback.description
-                ? feedback.description.slice(0, 120)
-                : `Rating: ${feedback.rating}/5`,
-              data: {
-                ticketId: id,
-                ticketNumber: freshTicket.ticket_number,
-                type: "TICKET_FEEDBACK",
-                priority: freshTicket.priority,
-              },
-            });
-          } catch (notifyError) {
-            const notifyMsg = notifyError instanceof Error ? notifyError.message : String(notifyError);
-            logger.warn(`Feedback notification could not be enqueued for ticket #${freshTicket.ticket_number}: ${notifyMsg}`);
-          }
+        try {
+          await notifyUsers({
+            userIds: Array.from(recipientIds),
+            title: `Feedback received for Ticket #${freshTicket.ticket_number}`,
+            body: feedback.description
+              ? feedback.description.slice(0, 120)
+              : `Rating: ${feedback.rating}/5`,
+            data: {
+              ticketId: id,
+              ticketNumber: freshTicket.ticket_number,
+              type: "TICKET_FEEDBACK",
+              priority: freshTicket.priority,
+            },
+          });
+        } catch (notifyError) {
+          const notifyMsg = notifyError instanceof Error ? notifyError.message : String(notifyError);
+          logger.warn(`Feedback notification could not be enqueued for ticket #${freshTicket.ticket_number}: ${notifyMsg}`);
         }
+      }
 
       res.sendResponse(
         {
@@ -148,9 +149,6 @@ router.post(
         },
       );
     } catch (error: unknown) {
-      if (transaction) {
-        await Database.rollbackTransaction(transaction);
-      }
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Create ticket feedback error: ${message}`);
       return next(error);
