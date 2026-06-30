@@ -15,6 +15,7 @@ import {
   validateRequest,
   isAuthorized,
   AppError,
+  UserRow,
 } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket, User } from "../../../models";
@@ -29,16 +30,16 @@ router.put(
   "/v1/ticket/:id/reassign",
   responseHandler,
   isAuthenticated,
-  isAuthorized('reAssign-ticket'),
+  isAuthorized('assign-ticket'),
   reAssignTicketValidation,
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
     const transaction = await Database.beginTransaction();
     try {
       const currentUser = req.currentUser!;
-      const id = (req.params["id"] as string).trim();
+      const id = (req.params["id"] as string);
       const body = req.body as Record<string, unknown>;
-      const userId = (body["user_id"] as string).trim();
+      const userId = (body["user_id"] as string);
 
       const ticket = await CacheManager.getOrSet<TicketRow>({
         key: `ticket:${id}`,
@@ -59,47 +60,45 @@ router.put(
         );
       }
 
-
-      if (!ticket.assigned_to) {
-        throw new ConflictError(
-          "Ticket is not currently assigned. Use the assign-ticket endpoint instead.",
-        );
-      }
-
       if (userId === ticket.assigned_to) {
         throw new ConflictError("Ticket is already assigned to this user.");
       }
 
-      const assigneeUser = await User.findOne<{
-        id: string;
-        name: string;
-        email: string;
-        role: string;
-      }>({
-        where: { id: userId, is_active: true },
-        select: ["id", "name", "email", "role", "plant_ids"],
-      });
+      const assigneeUser = await CacheManager.getOrSet<UserRow>({
+         key:`user:${userId}`,
+         fetcher : async()=>{
+          const assigneeUser = await User.findOne<UserRow>({
+            where: { id: userId, is_active: true },
+            select: ["id", "name", "email", "role", "plant_ids"],
+          });
 
-      if (!assigneeUser) {
-        throw new NotFoundError("No active user found with the provided user_id.");
-      }
+          if (!assigneeUser) {
+            throw new NotFoundError("No active user found with the provided user_id.");
+          }
+          return assigneeUser;
 
+        }
+      })
+      
 
       if (assigneeUser.role !== (UserRole.Admin as string)) {
         throw new AuthorizationError("Tickets can only be assigned to users with the 'Admin' role.");
       }
 
-
-      const previousAssigneeUser = await User.findOne<{
-        id: string;
-        name: string;
-        email: string;
-      }>({
-        where: { id: ticket.assigned_to as string },
-        select: ["id", "name", "email"],
-      });
-
-
+     const previousAssigneeUser = await CacheManager.getOrSet<UserRow>({
+      key:`user:${ticket.assigned_to}`,
+      fetcher : async ()=>{
+          const previousAssigneeUser = await User.findOne<UserRow>({
+          where: { id: ticket.assigned_to as string },
+          select: ["id", "name", "email"],
+        });
+        if(!previousAssigneeUser){
+          throw new NotFoundError("User not found.");
+        }
+        return previousAssigneeUser;
+      }
+     });
+      
       const updatedTicket = await Ticket.updateOne<TicketRow>({
         where: { id },
         data: {
@@ -148,7 +147,7 @@ router.put(
             freshTicket,
             { plant_name: freshTicket.plant_name ?? "" },
             componentDetails,
-            assigneeUser.name,
+            assigneeUser.full_name,
           ),
         });
       } catch (emailError) {
@@ -164,7 +163,7 @@ router.put(
           await sendEmail({
             email: previousAssigneeUser.email,
             subject: `Ticket reassigned: ${freshTicket.ticket_number}`,
-            message: `<p>Hello ${previousAssigneeUser.name},</p><p>Ticket ${freshTicket.ticket_number} has been reassigned to another team member and is no longer assigned to you.</p>`,
+            message: `<p>Hello ${previousAssigneeUser.full_name},</p><p>Ticket ${freshTicket.ticket_number} has been reassigned to another team member and is no longer assigned to you.</p>`,
           });
         } catch (emailError) {
           const emailMsg = emailError instanceof Error ? emailError.message : String(emailError);

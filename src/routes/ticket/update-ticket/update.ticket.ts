@@ -10,9 +10,10 @@ import {
   NotFoundError,
   responseHandler,
   sanitizeObject,
+  User,
   UserRole,
+  UserRow,
   validateRequest,
-  pickFromObject,
   isAuthorized,
 } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
@@ -21,10 +22,6 @@ import { TicketStatus } from "../../../enums/ticket.enum";
 import { updateTicketValidation } from "./update-ticket.validation";
 
 const router = express.Router();
-
-const ASSIGNEE_UPDATE_FIELDS = ["status","attachment_ids","closed_at"] as const;
-
-const ADMIN_UPDATE_FIELDS = [...ASSIGNEE_UPDATE_FIELDS] as const;
 
 const REASON_REQUIRED_STATUSES = [TicketStatus.REOPEN , TicketStatus.ON_HOLD];
 
@@ -42,13 +39,12 @@ router.put(
       const id = (req.params["id"] as string).trim();
       const currentUser = req.currentUser!;
       const isAdmin = currentUser.role === (UserRole.Admin as string);
-      const isUser = currentUser.role === (UserRole.User as string);
-     
+      const isTenant = currentUser.role === (UserRole.Tenant as string);
       const isSuperAdmin = currentUser.role === (UserRole.SuperAdmin as string);
-      if (!isAdmin && !isUser && !isSuperAdmin) {
+
+      if (!isAdmin && !isTenant && !isSuperAdmin) {
         throw new AuthorizationError("You are not authorized to update tickets.");
       }
-
       
       const ticket = await CacheManager.getOrSet<TicketRow>({
         key: `ticket:${id}`,
@@ -63,74 +59,49 @@ router.put(
       });
 
 
-       if ([TicketStatus.CLOSED].includes(ticket.status as TicketStatus)) {
+      if ([TicketStatus.CLOSED].includes(ticket.status as TicketStatus)) {
       const incomingStatus = (req.body as Record<string, unknown>)["status"];
 
-      
       if (incomingStatus !== TicketStatus.REOPEN) {
         throw new BadRequestError("Cannot update a closed ticket.");
       }
     }
 
       
-      const assignedToValues = (Array.isArray(ticket.assigned_to) ? ticket.assigned_to : [ticket.assigned_to])
-      .filter((value): value is string => typeof value === "string");
-
-      const userEmail = currentUser.email.trim().toLowerCase();
-      const matchedAssignee = assignedToValues.find(
-        (value) => value === currentUser.id || value.trim().toLowerCase() === userEmail,
-      );
-      const isAssignee = Boolean(matchedAssignee);
-
-     
-     
-      if (isUser && !isAssignee) {
-        throw new AuthorizationError("You can update only tickets assigned to you.");
+      if (isTenant) {
+        if (ticket.created_by !== currentUser.id) {
+          const ticketCreator = await User.findOne<UserRow>({
+            where: { id: ticket.created_by },
+            select: ["tenant_id"]
+          });
+          if (!ticketCreator || ticketCreator.tenant_id !== currentUser.id) {
+            throw new AuthorizationError("You are not authorized to update this ticket.");
+          }
+        }
       }
 
       const rawBody = req.body as Record<string, unknown>;
-     
+      const sanitizedBody = sanitizeObject(rawBody) as Record<string, unknown>;
+      const allowedBody: Record<string, unknown> = { ...sanitizedBody };
 
-     
-      const allowedFields = (isAdmin || isSuperAdmin)? [...ADMIN_UPDATE_FIELDS]: [...ASSIGNEE_UPDATE_FIELDS];
-     
-
-      // //  assignee cannot update closed_at
-      // if (isUser && "closed_at" in rawBody) {
-      //   throw new AuthorizationError("You are not allowed to update the closed_at field.");
-      // }
-
-      
-      const incomingStatus = rawBody["status"];
+      const incomingStatus = allowedBody["status"];
 
       if (incomingStatus === TicketStatus.OPEN && ticket.status !== TicketStatus.OPEN) {
         throw new BadRequestError("Ticket status cannot be changed back to 'open'.");
       }
 
-      if (typeof incomingStatus === "string" && REASON_REQUIRED_STATUSES.includes(incomingStatus as TicketStatus)) {
-        const reason = rawBody["reason"];
+      if (REASON_REQUIRED_STATUSES.includes(incomingStatus as TicketStatus)) {
+        const reason = allowedBody["reason"];
         if (!reason || (typeof reason === "string" && reason.trim() === "")) {
           throw new BadRequestError(`A reason is required when changing ticket status to "${incomingStatus}".`,);
         }
       }
-
-      
-      const sanitizedBody = sanitizeObject(rawBody) as Record<string, unknown>;
-      
-
-      const allowedBody :Record<string,unknown>= {...pickFromObject(sanitizedBody, [...allowedFields])};
       
       if (Object.keys(allowedBody).length === 0) {
         throw new BadRequestError("Ticket Update successfully.");
       }
-
       
-      if ("assigned_to" in allowedBody && allowedBody["assigned_to"] !== ticket.assigned_to) {
-        allowedBody["assigned_by"] = currentUser.id;
-      }
-
-      
-      if (typeof allowedBody["status"] === "string" && allowedBody["status"] !== ticket.status) {
+      if (allowedBody["status"] !== ticket.status) {
         const changedAt = new Date();
         const history = ticket.status_history ?? [];
         const lastEntry = history[history.length - 1];
@@ -166,8 +137,6 @@ router.put(
           allowedBody["closed_at"] = null;
         }
 
-
-    
       if (reason && REASON_REQUIRED_STATUSES.includes(allowedBody["status"] as TicketStatus)) {
         allowedBody["reason"] = reason;
       } else {
@@ -178,10 +147,7 @@ router.put(
 
      
       const updatedTicket = await Ticket.updateOne<TicketRow>({
-        where: {
-          id,
-          ...(isUser && { assigned_to: matchedAssignee }),
-        },
+        where: { id },
         data: { ...allowedBody, updated_by: currentUser.id },
       });
 

@@ -25,6 +25,27 @@ export const updateMyOwnTicketValidation = [
       maxLength: 36,
       message: "Each id in attachments_ids must be a valid UUID.",
     },
+    {
+      name: "plant_id",
+      nullable: true,
+      minLength: 36,
+      maxLength: 36,
+      message: "Plant id must be valid.",
+    },
+    {
+      name: "component_id",
+      nullable: true,
+      minLength: 36,
+      maxLength: 36,
+      message: "Component id must be valid.",
+    },
+    {
+      name: "component_type_id",
+      nullable: true,
+      minLength: 36,
+      maxLength: 36,
+      message: "Component type id must be valid.",
+    }
   ]),
   ...ExpressValidatorWrapper.stringValidator([
     {
@@ -74,29 +95,6 @@ export const updateMyOwnTicketValidation = [
       name: "phone_number",
       nullable: true,
       message: "Phone number must be a valid mobile number.",
-    },
-  ]),
-  ...ExpressValidatorWrapper.uuidValidator([
-    {
-      name: "plant_id",
-      nullable: true,
-      minLength: 36,
-      maxLength: 36,
-      message: "Plant id must be valid.",
-    },
-    {
-      name: "component_id",
-      nullable: true,
-      minLength: 36,
-      maxLength: 36,
-      message: "Component id must be valid.",
-    },
-    {
-      name: "component_type_id",
-      nullable: true,
-      minLength: 36,
-      maxLength: 36,
-      message: "Component type id must be valid.",
     },
   ]),
   ...ExpressValidatorWrapper.objectValidator([

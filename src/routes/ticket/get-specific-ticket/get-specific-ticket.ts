@@ -1,6 +1,6 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
-import { CacheManager, isAuthenticated, isAuthorized, logger, NotFoundError, responseHandler, UserRole, validateRequest } from "intellisolar-common";
+import { AuthorizationError, CacheManager, isAuthenticated, isAuthorized, logger, NotFoundError, responseHandler, User, UserRole, UserRow, validateRequest } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
 import { getSpecificTicketValidation } from "./get-specific-ticket.validations";
@@ -34,12 +34,20 @@ router.get(
                 }
             });
 
-            // ── Role-based access control ─────
+           
             if (currentUser.role === (UserRole.User as string) && ticket.created_by !== currentUser.id) {
-                throw new NotFoundError("Ticket not found.");
+                throw new AuthorizationError("You can only view tickets created by you.");
             }
-            
 
+            if (currentUser.role === (UserRole.Tenant as string) && ticket.created_by !== currentUser.id) {
+                const ticketCreator = await User.findOne<UserRow>({
+                    where: { id: ticket.created_by },
+                    select: ["tenant_id"]
+                });
+                if (!ticketCreator || ticketCreator.tenant_id !== currentUser.id) {
+                    throw new AuthorizationError("You are not authorized to view this ticket.");
+                }
+            }
 
             const data  = {
                 id:ticket.id,
@@ -50,7 +58,6 @@ router.get(
                 title:ticket.title,
                 description:ticket.description,
                 status:ticket.status,
-                // source:ticket.source,
                 priority:ticket.priority,
                 plant_id:ticket.plant_id,
                 component_id:ticket.component_id,
@@ -59,7 +66,6 @@ router.get(
                 component_name:ticket.component_name,
                 component_type:ticket.component_type,
                 status_history:ticket.status_history,
-                status_statistics: statusMetrics,
                 feedback: ticket.feedback,
                 attachments_ids:ticket.attachments_ids,
                 assigned_to_Id:ticket.assigned_to,

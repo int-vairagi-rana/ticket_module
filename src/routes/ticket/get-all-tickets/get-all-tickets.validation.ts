@@ -113,14 +113,6 @@ export const getAllTicketsValidation = [
       name: "sort_by",
       query: true,
       nullable: true,
-      customValidators: [
-        (value: string ) => {
-            if (value && !ALLOWED_SORT_FIELDS.includes(value)) {
-                throw new Error("Invalid sort field");
-            }
-            return true ; 
-        },
-    ],
       message: "Sort by must be a string.",
     },
     {

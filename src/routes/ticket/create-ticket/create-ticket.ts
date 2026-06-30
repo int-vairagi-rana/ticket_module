@@ -202,7 +202,6 @@ router.post(
               component ? { component_name: component.component_name, component_type_name: component.component_type_name } : null,
               plant.contact_person_name,
             ),
-          // amazonq-ignore-next-line
           });
         } catch (emailError) {
           const emailMsg = emailError instanceof Error ? emailError.message : String(emailError);

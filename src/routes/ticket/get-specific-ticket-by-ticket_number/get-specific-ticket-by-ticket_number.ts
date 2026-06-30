@@ -1,9 +1,9 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
-import {  CacheManager, isAuthenticated,isAuthorized, logger, NotFoundError, responseHandler, UserRole, validateRequest } from "intellisolar-common";
+import {  AuthorizationError, CacheManager, isAuthenticated, isAuthorized, logger, NotFoundError, responseHandler, User, UserRole, UserRow, validateRequest } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
-import { buildTicketStatusMetrics } from "../get-ticket-statistics/ticket.helper";
+import { buildTicketStatusMetrics } from "../ticket.helper";
 import { getSpecificTicketByTicketNumberValidation } from "./get-specific-ticket-by-ticket_number.validation";
 
 const router = express.Router();
@@ -34,9 +34,21 @@ router.get(
                 }
             });
 
-            // if (currentUser.role === (UserRole.User as string) && ticket.created_by !== currentUser.id) {
-            //     throw new NotFoundError("Ticket not found.");
-            // }
+            const currentUser = req.currentUser!;
+
+            if (currentUser.role === (UserRole.User as string) && ticket.created_by !== currentUser.id) {
+                throw new AuthorizationError("You can only view tickets created by you.");
+            }
+
+            if (currentUser.role === (UserRole.Tenant as string) && ticket.created_by !== currentUser.id) {
+                const ticketCreator = await User.findOne<UserRow>({
+                    where: { id: ticket.created_by },
+                    select: ["tenant_id"]
+                });
+                if (!ticketCreator || ticketCreator.tenant_id !== currentUser.id) {
+                    throw new AuthorizationError("You are not authorized to view this ticket.");
+                }
+            }
 
             const statusMetrics = buildTicketStatusMetrics(ticket);
 
@@ -50,7 +62,6 @@ router.get(
                 title:ticket.title,
                 description:ticket.description,
                 status:ticket.status,
-                // source:ticket.source,
                 priority:ticket.priority,
                 plant_id:ticket.plant_id,
                 component_id:ticket.component_id,

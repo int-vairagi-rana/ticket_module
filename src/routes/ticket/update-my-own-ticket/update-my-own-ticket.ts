@@ -11,7 +11,9 @@ import {
   pickFromObject,
   responseHandler,
   sanitizeObject,
+  User,
   UserRole,
+  UserRow,
   validateRequest,
   AppError,
   isAuthorized,
@@ -38,8 +40,11 @@ router.put(
       const currentUser = req.currentUser!;
 
       
-      if (currentUser.role !== (UserRole.User as string)) {
-        throw new AuthorizationError("Only users can update their own tickets.");
+      const isUser = currentUser.role === (UserRole.User as string);
+      const isTenant = currentUser.role === (UserRole.Tenant as string);
+
+      if (!isUser && !isTenant) {
+        throw new AuthorizationError("Only users or tenants can update their own tickets.");
       }
 
       const ticket = await CacheManager.getOrSet<TicketRow>({
@@ -54,8 +59,18 @@ router.put(
         },
       });
 
-      if (ticket.created_by !== currentUser.id) {
+      if (isUser && ticket.created_by !== currentUser.id) {
         throw new AuthorizationError("You can update only tickets created by you.");
+      }
+
+      if (isTenant && ticket.created_by !== currentUser.id) {
+        const ticketCreator = await User.findOne<UserRow>({
+          where: { id: ticket.created_by },
+          select: ["tenant_id"]
+        });
+        if (!ticketCreator || ticketCreator.tenant_id !== currentUser.id) {
+          throw new AuthorizationError("You are not authorized to update this ticket.");
+        }
       }
 
       const rawBody = req.body as Record<string,unknown>;
@@ -110,16 +125,14 @@ router.put(
         allowedBody["component_type_id"] = component.component_type_id;
       }
 
-      // handle feedback object
+      
       if ("feedback" in allowedBody && allowedBody["feedback"] !== null && typeof allowedBody["feedback"] === "object") {
         const feedback = allowedBody["feedback"] as Record<string, unknown>;
 
-        // trim feedback.description
         if ("description" in feedback && typeof feedback["description"] === "string") {
           feedback["description"] = feedback["description"].trim();
         }
 
-        // validate feedback.rating is integer between 1-5
         if ("rating" in feedback) {
           const rating = feedback["rating"];
           if (
@@ -148,7 +161,7 @@ router.put(
       }
 
       const updatedTicket = await Ticket.updateOne<TicketRow>({
-        where: { id, created_by: currentUser.id },
+        where: { id, created_by: isTenant ? ticket.created_by : currentUser.id },
         data: { ...updatedData, updated_by: currentUser.id },
       });
 

@@ -10,14 +10,6 @@ export const updateTicketValidation = [
       minLength: 36,
       maxLength: 36,
       message: "Invalid or missing ticket id.",
-    },
-    {
-      name: "assigned_to",
-      param: true,
-      mandatory: false,
-      minLength: 36,
-      maxLength: 36,
-      message: "Invalid or missing assigned_to id.",
     }
   ]),
   ...ExpressValidatorWrapper.stringValidator([

@@ -6,13 +6,15 @@ export const reAssignTicketValidation = [
             name: "id",
             param: true,
             mandatory: true,
-            nullable:false,
+            minLength:36,
+            maxLength:36,
             message: "Invalid or missing ticket id."
         },
         {
             name: "user_id",
             mandatory: true,
-            nullable:false,
+            minLength:36,
+            maxLength:36,
             message: "Invalid or missing user id."
         },
     ])

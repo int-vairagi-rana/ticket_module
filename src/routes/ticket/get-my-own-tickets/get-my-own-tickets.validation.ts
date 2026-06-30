@@ -1,8 +1,6 @@
 import { ExpressValidatorWrapper } from "intellisolar-common";
 import { TicketPriority ,  TicketStatus } from "../../../enums/ticket.enum";
 
-const ALLOWED_SORT_FIELDS = ['created_at', 'updated_at', 'status', 'priority', 'plant_name','resolved_at'];
-
 export const getMyTicketsValidation = [
    ...ExpressValidatorWrapper.uuidValidator([
     {
@@ -69,15 +67,7 @@ export const getMyTicketsValidation = [
       min: 1,
       max: 100,
       message: "Limit must be a positive number less than or equal to 100",
-    },
-    {
-      name: "feedback_rating",
-      query: true,
-      nullable: true,
-      min: 1,
-      max: 5,
-      message: "Feedback rating must be a number between 1 and 5",
-    },
+    }
   ]),
   ...ExpressValidatorWrapper.stringValidator([
     {
@@ -106,14 +96,6 @@ export const getMyTicketsValidation = [
       name: "sort_by",
       query: true,
       nullable: true,
-      customValidators: [
-        (value: string ) => {
-            if (value && !ALLOWED_SORT_FIELDS.includes(value)) {
-                throw new Error("Invalid sort field");
-            }
-            return true ; 
-        },
-    ],
       message: "Sort by must be a string.",
     },
     {
@@ -143,12 +125,6 @@ export const getMyTicketsValidation = [
       nullable: true,
       maxLength: 100,
       message: "Title must be a string with maximum 100 characters",
-    },
-    {
-      name: "source",
-      query: true,
-      nullable: true,
-      message: "Source must be a valid string",
     },
     {
       name: "status",
@@ -230,13 +206,6 @@ export const getMyTicketsValidation = [
         nullable: true, 
         message: 'Unassigned must be true or false' 
 
-    },
-    {  
-        name: 'has_feedback', 
-        query: true, 
-        nullable: true, 
-        message: 'Has_Feedback must be true or false' 
-
-    },
+    }
   ])
 ];

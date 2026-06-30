@@ -1,5 +1,5 @@
-import type { TicketRow } from "../../../interface";
-import { TicketStatus  , TicketPriority} from "../../../enums/ticket.enum";
+import type { TicketRow } from "../../interface";
+import { TicketStatus } from "../../enums/ticket.enum";
 
 const secondsToHuman = (seconds: number) => {
   const safeSeconds = Math.max(0, Math.floor(seconds));
@@ -125,62 +125,7 @@ export const summarizeTicketStatusMetrics = (tickets: TicketRow[]) => {
   };
 };
 
-
 export const OVERDUE_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000; // 3 days in ms
 
-export const buildStatistics = (tickets: TicketRow[], total: number) => {
-  const byStatus = Object.values(TicketStatus).reduce<Record<string, number>>(
-    (acc, s) => ({ ...acc, [s]: 0 }),
-    {},
-  );
-  const byPriority = Object.values(TicketPriority).reduce<Record<string, number>>(
-    (acc, p) => ({ ...acc, [p]: 0 }),
-    {},
-  );
 
-  const terminalStatuses: string[] = [TicketStatus.RESOLVED, TicketStatus.CLOSED, TicketStatus.CANCELED];
-  let overdue = 0;
-  let feedbackSubmitted = 0;
-  const feedbackRatings: number[] = [];
-
-  for (const ticket of tickets) {
-    // byStatus / byPriority counts
-    byStatus[ticket.status] = (byStatus[ticket.status] ?? 0) + 1;
-    byPriority[ticket.priority] = (byPriority[ticket.priority] ?? 0) + 1;
-
-    // overdue: open ticket AND created more than 3 days ago
-    const isOpenTicket = !terminalStatuses.includes(ticket.status);
-    const ageMs = Date.now() - new Date(ticket.created_at).getTime();
-    if (isOpenTicket && ageMs > OVERDUE_THRESHOLD_MS) {
-      overdue++;
-    }
-
-    // feedback
-    if (ticket.feedback) {
-      feedbackSubmitted++;
-      const { rating } = ticket.feedback;
-      if (typeof rating === "number" && Number.isFinite(rating)) {
-        feedbackRatings.push(rating);
-      }
-    }
-  }
-
-  const averageRating = feedbackRatings.length? Number((feedbackRatings.reduce((sum, r) => sum + r, 0) / feedbackRatings.length).toFixed(2),): null;
-
-  return {
-    total,
-    generated: total,
-    resolved: byStatus[TicketStatus.RESOLVED] ?? 0,
-    overdue,
-    feedback: {
-      submitted: feedbackSubmitted,
-      pending: total - feedbackSubmitted,
-      averageRating,
-    },
-    byStatus,
-    byPriority,
-    status_history: summarizeTicketStatusHistory(tickets),
-    status_metrics: summarizeTicketStatusMetrics(tickets),
-  };
-};
 
