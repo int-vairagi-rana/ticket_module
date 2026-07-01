@@ -13,14 +13,13 @@ import {
   responseHandler,
   sendEmail,
   UserRole,
-  UserRow,
   validateRequest,
 } from "intellisolar-common";
 import type { PlantRow, TicketRow } from "../../../interface";
 import { Plant, Ticket , User} from "../../../models";
 import { createTicketValidation } from "./create-ticket.validation";
 import { getAssignmentEmail } from "../../../utils";
-import { TicketStatus , TicketPriority , TicketSource } from "../../../enums";
+import type { TicketStatus , TicketPriority , TicketSource } from "../../../enums";
 
 
 const router = express.Router();
@@ -37,7 +36,6 @@ router.post(
   createTicketValidation,
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
-    const transaction = await Database.beginTransaction();
     try {
       const currentUser = req.currentUser!;
 
@@ -53,7 +51,6 @@ router.post(
         source,
         priority,
         attachments_ids,
-        assigned_to
       } = req.body as Record<string, unknown>;
 
        const plant = await CacheManager.getOrSet<PlantRow>({

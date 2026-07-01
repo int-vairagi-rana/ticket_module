@@ -1,5 +1,6 @@
-import { CommentsRow } from "../interface";
-import { BaseModel, FindResult, PopulateOption } from "intellisolar-common"
+import { type CommentsRow } from "../interface";
+import type  { FindResult ,  PopulateOption } from "intellisolar-common"
+import { BaseModel } from "intellisolar-common";
 import { commentFieldConfigs } from "../valid-fields";
 
 export class Comment extends BaseModel {
@@ -40,16 +41,16 @@ export class Comment extends BaseModel {
         notSelectedColumns,
         populate = true
     }: {
-        query: Record<string, any>;
+        query: Record<string, unknown>;
         selectColumns?: string[];
         notSelectedColumns?: string[];
         populate?: boolean;
     }): Promise<FindResult<CommentsRow>> {
-        return super.find({
+        return (await super.find({
             query,
             selectColumns,
             notSelectedColumns,
             populate: populate ? this.detailPopulateJoins : [],
-        });
+        })) as FindResult<CommentsRow>;
     }
 };

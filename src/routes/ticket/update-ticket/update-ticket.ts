@@ -10,9 +10,7 @@ import {
   NotFoundError,
   responseHandler,
   sanitizeObject,
-  User,
   UserRole,
-  UserRow,
   validateRequest,
   isAuthorized,
 } from "intellisolar-common";
@@ -59,7 +57,7 @@ router.put(
       });
 
 
-      if ([TicketStatus.CLOSED].includes(ticket.status as TicketStatus)) {
+      if ([TicketStatus.CLOSED].includes(ticket.status)) {
       const incomingStatus = (req.body as Record<string, unknown>)["status"];
 
       if (incomingStatus !== TicketStatus.REOPEN) {
@@ -67,14 +65,10 @@ router.put(
       }
     }
 
-      
+
       if (isTenant) {
         if (ticket.created_by !== currentUser.id) {
-          const ticketCreator = await User.findOne<UserRow>({
-            where: { id: ticket.created_by },
-            select: ["tenant_id"]
-          });
-          if (!ticketCreator || ticketCreator.tenant_id !== currentUser.id) {
+          if (ticket.tenant_id !== currentUser.id) {
             throw new AuthorizationError("You are not authorized to update this ticket.");
           }
         }
@@ -90,10 +84,10 @@ router.put(
         throw new BadRequestError("Ticket status cannot be changed back to 'open'.");
       }
 
-      if (REASON_REQUIRED_STATUSES.includes(incomingStatus as TicketStatus)) {
+      if (typeof incomingStatus === "string" && REASON_REQUIRED_STATUSES.includes(incomingStatus as TicketStatus)) {
         const reason = allowedBody["reason"];
         if (!reason || (typeof reason === "string" && reason.trim() === "")) {
-          throw new BadRequestError(`A reason is required when changing ticket status to "${incomingStatus}".`,);
+          throw new BadRequestError(`A reason is required when changing ticket status to ${incomingStatus}.`);
         }
       }
       
@@ -171,7 +165,6 @@ router.put(
         baseKey: "ticket",
         listPattern: "tickets:list:*",
       });
-      await CacheManager.delPattern("tickets:statistics:*");
       await CacheManager.set(`ticket:${id}`, freshTicket);
 
       return res.sendResponse(

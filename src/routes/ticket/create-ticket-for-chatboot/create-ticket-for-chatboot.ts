@@ -10,18 +10,15 @@ import {
   logger,
   NotFoundError,
   responseHandler,
-  sanitizeObject,
   sendEmail,
-  UserRole,
   validateRequest,
   isAuthenticated,
-  UserRow,
 } from "intellisolar-common";
 import type { PlantRow, TicketRow } from "../../../interface";
 import { Plant, Ticket, User } from "../../../models";
-import { createTicketForChatbootValidation } from "./create-Ticket-for-Chatboot.validation";
+import { createTicketForChatbootValidation } from "./create-ticket-for-chatboot.validation";
 import { getAssignmentEmail } from "../../../utils";
-import { TicketStatus , TicketSource ,TicketPriority } from "../../../enums";
+import type{ TicketStatus , TicketSource ,TicketPriority } from "../../../enums";
 
 const router = express.Router();
 

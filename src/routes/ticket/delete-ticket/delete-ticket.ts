@@ -1,24 +1,22 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 import {
-  AppError,
-  AuthorizationError,
   CacheManager,
   isAuthenticated,
   isAuthorized,
   logger,
   responseHandler,
-  UserRole,
   validateRequest,
 } from "intellisolar-common";
 import { Ticket } from "../../../models";
 import { deleteMyOwnTicketValidation } from "./delete-ticket.validation";
-import { TicketRow } from "../../../interface";
+import type { TicketRow } from "../../../interface";
+import { TicketStatus } from "../../../enums";
 
 const router = express.Router();
 
 router.delete(
-  "/v1/ticket/:id",
+  "/v1/delete/ticket",
   responseHandler,
   isAuthenticated,
   isAuthorized("delete-ticket"),
@@ -27,35 +25,56 @@ router.delete(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const currentUser = req.currentUser!;
-      const id  = (req.params["id"] as string).trim();
 
-      const ticket = await Ticket.findOne<TicketRow>({
-        where: { id },
+      const rawIds = (req.body as { ids: string[] }).ids;
+      const uniqueIds = Array.from(new Set(rawIds));
+
+      const tickets = await Ticket.findByIds<TicketRow>({
+        where: { id: uniqueIds },
       });
 
-      if (!ticket) {
-        throw new AppError("Ticket not found.", 404);
+      const skipped: { id: string; reason: string }[] = [];
+      const eligibleIds: string[] = [];
+
+      for (const id of uniqueIds) {
+        const ticket = tickets.find((t) => t.id === id);
+
+        if (!ticket) {
+          skipped.push({ id, reason: "Ticket not found." });
+          continue;
+        }
+
+        if (ticket.status === TicketStatus.OPEN) {
+          skipped.push({ id, reason: "Open tickets cannot be deleted." });
+          continue;
+        }
+
+        eligibleIds.push(id);
       }
 
-      if (ticket.status === "closed" || ticket.status === "resolved" ) {
-        throw new AppError("Closed or Resolved tickets cannot be deleted.", 400);
+      let deleted: string[] = [];
+
+      if (eligibleIds.length > 0) {
+        const deletedRows = await Ticket.deleteMany<TicketRow>({
+          where: { id: eligibleIds },
+        });
+        deleted = deletedRows.map((row) => row.id);
+
+        await CacheManager.invalidateMany({
+          ids: deleted,
+          baseKey: "ticket",
+          listPattern: "tickets:list:*",
+        });
       }
 
-      await Ticket.deleteOne({where : {id }});
-
-      await CacheManager.invalidateMany({
-        ids: [id],
-        baseKey: "ticket",
-        listPattern: "tickets:list:*",
-      });
-      await CacheManager.delPattern("tickets:statistics:*");
-
-      logger.info(`Ticket ${id} deleted by user ${currentUser.id}`);
+      logger.info(
+        `Ticket delete by user ${currentUser.id}: deleted=${deleted.length}, skipped=${skipped.length}`,
+      );
 
       return res.sendResponse(
-        { message: "Ticket deleted successfully." },
+        { message: "Ticket deletion completed.", deleted, skipped },
         200,
-        { targetType: "Ticket", action: "delete-my-own-ticket" },
+        { targetType: "Ticket", action: "delete-ticket" },
       );
     } catch (error: unknown) {
       logger.error(
@@ -66,4 +85,4 @@ router.delete(
   },
 );
 
-export { router as deleteTicketV1Router };
+export { router as deleteTicketsV1Router };

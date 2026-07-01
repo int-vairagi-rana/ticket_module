@@ -202,7 +202,7 @@ const ticketBase: PartialFieldConfig[] = [
         sortable:false,
         filterable:true,
         searchable: false,
-        allowArrayFilter:false
+        allowArrayFilter: true
     },
     {
         name: "created_by",
@@ -244,7 +244,7 @@ const ticketBase: PartialFieldConfig[] = [
         type: ValueTypesEnum.DATE,
         sortable: true,
         filterable: true,
-        allowArrayFilter:true,
+        allowArrayFilter: true,
         searchable: false,
         creatable: false,
         updatable: false

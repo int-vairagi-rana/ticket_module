@@ -1,6 +1,6 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
-import { AuthorizationError, CacheManager, isAuthenticated, isAuthorized, logger, NotFoundError, responseHandler, User, UserRole, UserRow, validateRequest } from "intellisolar-common";
+import { AuthorizationError, CacheManager, isAuthenticated, isAuthorized, logger, NotFoundError, responseHandler, UserRole, validateRequest } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
 import { getSpecificTicketValidation } from "./get-specific-ticket.validations";
@@ -40,11 +40,7 @@ router.get(
             }
 
             if (currentUser.role === (UserRole.Tenant as string) && ticket.created_by !== currentUser.id) {
-                const ticketCreator = await User.findOne<UserRow>({
-                    where: { id: ticket.created_by },
-                    select: ["tenant_id"]
-                });
-                if (!ticketCreator || ticketCreator.tenant_id !== currentUser.id) {
+                if (ticket.tenant_id !== currentUser.id) {
                     throw new AuthorizationError("You are not authorized to view this ticket.");
                 }
             }

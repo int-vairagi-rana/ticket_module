@@ -1,17 +1,31 @@
 import { ExpressValidatorWrapper } from "intellisolar-common";
+import { body } from "express-validator";
 
 export const assignTicketValidation = [
-    ...ExpressValidatorWrapper.uuidValidator([
-        {
-            name: "id",
-            param: true,
-            mandatory: true,
-            message: "Invalid or missing ticket id."
-        },
-        {
-            name: "admin_id",
-            mandatory: true,
-            message: "Invalid or missing admin id."
-        },
-    ])
+  ...ExpressValidatorWrapper.uuidValidator([
+    {
+      name: "admin_id",
+      param: true,
+      mandatory: true,
+      minLength:36,
+      maxLength:36,
+      message: "Invalid or missing admin id.",
+    },
+    {
+      name: "ticket_ids.*",
+      ifConditions: [body("ticket_ids").exists().isArray()],
+      mandatory: true,
+      nullable: false,
+      minLength: 36,
+      maxLength: 36,
+      message: "Each ticket_id must be a valid UUID.",
+    },
+  ]),
+  ...ExpressValidatorWrapper.arrayValidator([
+    {
+      name: "ticket_ids",
+      mandatory: true,
+      message: "Ticket ids must be a non-empty array.",
+    },
+  ]),
 ];

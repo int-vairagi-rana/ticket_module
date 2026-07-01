@@ -15,25 +15,25 @@ export const updateTicketValidation = [
   ...ExpressValidatorWrapper.stringValidator([
     {
       name: "status",
-      mandatory:false,
+      nullable:true,
       customValidators: [(value: string) => Object.values(TicketStatus).includes(value as TicketStatus)],
       message: "Status must be a valid ticket status.",
     },
     {
       name:"reason",
-      mandatory:false,
+      nullable:true,
       message:"Reason must be a valid string. "
     }
   ]),
   ...ExpressValidatorWrapper.dateValidator([
     {
       name: "resolved_at",
-      mandatory:false,
+      nullable:true,
       message: "Resolved at must be a valid ISO 8601 date.",
     },
     {
       name: "closed_at",
-      mandatory:false,
+      nullable:true,
       message: "Closed at must be a valid ISO 8601 date.",
     }
   ])

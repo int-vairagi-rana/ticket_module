@@ -12,7 +12,7 @@ import {
   CacheManager
 } from "intellisolar-common";
 import type { CommentsRow, TicketRow } from "../../../interface";
-import { Ticket, User, Comment } from "../../../models";
+import { Ticket, Comment } from "../../../models";
 import { createCommentValidation } from "./create-comments.validation";
 import { notifyUsers } from "../../../utils/notify-users-utils";
 
@@ -54,33 +54,10 @@ router.post(
           }
         });
 
-
      const assigneeIds = normalizeUserIds(ticket.assigned_to);
 
-      const [ticketCreatorResult, ticketAssigneesResult] = await Promise.all([
-        User.find({
-          query: {
-            id: ticket.created_by,
-            is_active: true,
-          },
-        }),
-        assigneeIds.length > 0
-          ? User.find({
-              query: { id: assigneeIds, is_active: true },
-            })
-          : Promise.resolve({ data: [] }),  
-      ]);
-
-      const ticketCreator = ticketCreatorResult.data[0];
-      const ticketAssignees = ticketAssigneesResult.data;
-      const activeAssigneeIds = new Set(
-        ticketAssignees
-          .filter((assignee) => assignee.is_active)
-          .map((assignee) => assignee.id),
-      );
-
-      const canComment = (!!ticketCreator && ticketCreator.id === currentUser.id) || activeAssigneeIds.has(currentUser.id);
-
+     const canComment = ticket.created_by === currentUser.id ||  ticket.tenant_id === currentUser.id;
+      
       if (!canComment) {
         throw new AuthorizationError("You are not authorized to add comments to this ticket.");
       }

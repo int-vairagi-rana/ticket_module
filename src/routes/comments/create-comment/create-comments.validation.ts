@@ -25,13 +25,12 @@ export const createCommentValidation = [
             nullable: true,
             minLength: 36,
             maxLength: 36,
-            message: "audio.document_id must be a valid UUID.",
+            message: "Audio document_id must be a valid UUID.",
         },
     ]),
     ...ExpressValidatorWrapper.stringValidator([
         {
             name: "comment",
-            mandatory: false,
             minLength: 1,
             maxLength: 1000,
             isHTML: true,
@@ -42,9 +41,8 @@ export const createCommentValidation = [
     ...ExpressValidatorWrapper.arrayValidator([
         {
             name: "attachments_ids",
-            mandatory: false,
             nullable: true,
-            message: "attachments_ids must be an array."
+            message: "Attachments ids must be an array."
         }
     ]),
 ];

@@ -11,9 +11,7 @@ import {
   pickFromObject,
   responseHandler,
   sanitizeObject,
-  User,
   UserRole,
-  UserRow,
   validateRequest,
   AppError,
   isAuthorized,
@@ -39,7 +37,6 @@ router.put(
       const id = (req.params["id"] as string).trim();
       const currentUser = req.currentUser!;
 
-      
       const isUser = currentUser.role === (UserRole.User as string);
       const isTenant = currentUser.role === (UserRole.Tenant as string);
 
@@ -64,11 +61,7 @@ router.put(
       }
 
       if (isTenant && ticket.created_by !== currentUser.id) {
-        const ticketCreator = await User.findOne<UserRow>({
-          where: { id: ticket.created_by },
-          select: ["tenant_id"]
-        });
-        if (!ticketCreator || ticketCreator.tenant_id !== currentUser.id) {
+        if (ticket.tenant_id !== currentUser.id) {
           throw new AuthorizationError("You are not authorized to update this ticket.");
         }
       }
@@ -83,7 +76,7 @@ router.put(
 
       for (const field of ["name", "title", "description"]) {
         if (field in allowedBody && typeof allowedBody[field] === "string") {
-          allowedBody[field] = (allowedBody[field] as string).trim();
+          allowedBody[field] = allowedBody[field].trim();
         }
       }
      
@@ -183,7 +176,6 @@ router.put(
         baseKey: "ticket",
         listPattern: "tickets:list:*",
       });
-      await CacheManager.delPattern("tickets:statistics:*");
       await CacheManager.set(`ticket:${id}`, freshTicket);
 
       return res.sendResponse(

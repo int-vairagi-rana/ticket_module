@@ -11,7 +11,7 @@ import { Document } from "../../../models";
 import type { FileRow } from "../../../interface";
 import { UploadStatus, ProcessingStatus } from "../../../enums";
 import { s3Service } from "../../../utils/aws";
-import { confirmCommentFileValidation } from "./confirm-comment-file.validation";
+import { confirmCommentFileValidation } from "./confirm-comment-attachments.validation";
 
 const router = express.Router();
 

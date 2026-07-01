@@ -11,7 +11,6 @@ import {
   NotFoundError,
   responseHandler,
   sanitizeObject,
-  UserRole,
   validateRequest,
 } from "intellisolar-common";
 import type { CommentsRow, TicketRow, UpdateCommentBody } from "../../../interface";
@@ -35,47 +34,51 @@ router.patch(
       const commentId = req.params["id"] as string;
       const entityId = req.params["entity_id"] as string;
 
-      const getComment = await CacheManager.getOrSet<CommentsRow>({
-        key: `comment:${commentId}`,
-        fetcher: async () => {
-          const comment = await Comment.findOne<CommentsRow>({
-            where: { id: commentId },
-            select: ["id"],
-            populate: Comment.detailPopulateJoins,
-          });
-          if (!comment) throw new NotFoundError("Comment not found.");
-          return comment;
-        },
+    
+      const existingComment = await Comment.findOne<CommentsRow>({
+        where: { id: commentId },
+        populate: Comment.detailPopulateJoins,
       });
 
-      if (getComment.entity_id !== entityId) {
+      if (!existingComment) {
+        throw new NotFoundError("Comment not found.");
+      }
+    
+      if (existingComment.entity_id !== entityId) {
         throw new BadRequestError("This comment does not belong to the specified entity.");
-      }
+      };
 
-      const ticket = await Ticket.findOne<TicketRow>({
-        where: { id: entityId },
-        select: ["id"],
-        populate: Ticket.detailPopulateJoins,
+      const ticket = await CacheManager.getOrSet<TicketRow>({
+        key:`ticket:${entityId}`,
+        fetcher: async()=> {
+          const ticket = await Ticket.findOne<TicketRow>({
+            where: { id: entityId },
+            populate: Ticket.detailPopulateJoins,
+          });
+
+          if (!ticket) {
+            throw new NotFoundError("Ticket not found.");
+          }
+          return ticket;
+        }
       });
-
-      if (!ticket) {
-        throw new NotFoundError("Ticket not found.");
-      }
-
-      const adminSuperAdminCanView = currentUser.role === UserRole.Admin || currentUser.role === UserRole.SuperAdmin;
+      
+      const isAdminSuperAdmin = currentUser.role === "admin" || currentUser.role === "super_admin";
 
       const canEdit =
-        adminSuperAdminCanView ||
-        getComment.created_by === currentUser.id ||
+        isAdminSuperAdmin ||
+        existingComment.created_by === currentUser.id ||
         ticket.created_by === currentUser.id ||
+        ticket.tenant_id === currentUser.id ||
         ticket.assigned_to === currentUser.id;
+
 
       if (!canEdit) {
         throw new AuthorizationError("You are not authorized to edit this comment.");
       }
 
-      if (!adminSuperAdminCanView) {
-        const commentDurationMs = Date.now() - new Date(getComment.created_at).getTime();
+      if (!isAdminSuperAdmin) {
+        const commentDurationMs = Date.now() - new Date(existingComment.created_at).getTime();
         if (commentDurationMs > EDIT_WINDOW_MS) {
           throw new BadRequestError("This comment can no longer be edited.");
         }
@@ -102,13 +105,6 @@ router.patch(
       if (!freshComment) {
         throw new InternalServerError("Failed to fetch updated comment.");
       }
-
-      await CacheManager.invalidateMany({
-        ids: [commentId],
-        baseKey: "comment",
-        listPattern: "comments:list:*",
-      });
-      await CacheManager.set(`comment:${commentId}`, freshComment);
 
       return res.sendResponse(
         {

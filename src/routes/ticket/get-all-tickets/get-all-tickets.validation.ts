@@ -180,39 +180,40 @@ export const getAllTicketsValidation = [
   ]),
   ...ExpressValidatorWrapper.dateValidator([
     {
-      name: "resolved_from",
+      name: "resolved_at_start",
       query: true,
       nullable: true,
-      message: "Resolved_From must be a valid ISO 8601 date."
-    },{
-      name: "resolved_to",
+      message: "Resolved at start must be a valid ISO 8601 date."
+    }
+    ,{
+      name: "resolved_at_end",
       query: true,
       nullable: true,
-      message: "Resolved_To must be a valid ISO 8601 date."
+      message: "Resolved at end must be a valid ISO 8601 date."
     },
     {
-      name: "created_from",
+      name: "created_at_start",
       query: true,
       nullable: true,
-      message: "Created from date must be a valid ISO 8601 date."
+      message: "Created at start must be a valid ISO 8601 date."
     },
     {
-      name: "created_to",
+      name: "created_at_end",
       query: true,
       nullable: true,
-      message: "Created to date must be a valid ISO 8601 date."
+      message: "Created at end must be a valid ISO 8601 date.",
     },
     {
-      name: "updated_from",
+      name: "updated_at_start",
       query: true,
       nullable: true,
-      message: "Updated from date must be a valid ISO 8601 date."
+      message: "Updated at start must be a valid ISO 8601 date."
     },
     {
-      name: "updated_to",
+      name: "updated_at_end",
       query: true,
       nullable: true,
-      message: "Updated to date must be a valid ISO 8601 date."
+      message: "Updated at end must be a valid ISO 8601 date.",
     },
   ]),
   ...ExpressValidatorWrapper.booleanValidator([

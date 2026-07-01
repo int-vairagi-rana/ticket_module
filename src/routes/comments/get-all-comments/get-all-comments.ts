@@ -1,20 +1,18 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 import {
-  AuthorizationError,
   isAuthenticated,
   logger,
   NotFoundError,
   responseHandler,
-  UserRole,
   validateRequest,
   CacheManager,
-  FindResult,
   isAuthorized,
+  AuthorizationError,
 } from "intellisolar-common";
-import { Ticket,  Comment } from "../../../models";
+import { Ticket, Comment } from "../../../models";
 import { getAllCommentsValidation } from "./get-all-comments.validation";
-import { CommentsRow, TicketRow } from "../../../interface";
+import type { TicketRow } from "../../../interface";
 
 const router = express.Router();
 
@@ -22,7 +20,7 @@ router.get(
   "/v1/comments/:entityId",
   responseHandler,
   isAuthenticated,
-  isAuthorized('get-all-comments'),
+  isAuthorized("get-all-comments"),
   getAllCommentsValidation,
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -30,56 +28,46 @@ router.get(
       const currentUser = req.currentUser!;
       const entityId = req.params["entityId"] as string;
 
-      const ticket = await Ticket.findOne<TicketRow>({
-        where: { id: entityId },
-        select: ["id", "created_by", "assigned_to"],
-      });
+      const ticket = await CacheManager.getOrSet<TicketRow>({
+        key: `ticket:${entityId}`,
+        fetcher: async () => {
+          const ticket = await Ticket.findOne<TicketRow>({
+            where: { id: entityId },
+          });
 
-      if (!ticket) {
-        throw new NotFoundError("Ticket not found.");
+          if (!ticket) {
+            throw new NotFoundError("Ticket not found.");
+          }
+          return ticket;
+        },
+      });
+      
+      const canView = ticket.created_by === currentUser.id || ticket.tenant_id === currentUser.id  ;
+     
+      if (!canView){
+        throw new AuthorizationError("You are not authorise to view comments for this ticket.");
+
       }
 
-      const { page = 1 , limit = 50 , search , sort_order , sort_by ,  created_by , updated_by , created_by_name , updated_by_name ,
-        created_from , created_to , updated_from , updated_to } = req.query;
-
-      const query:Record<string,any> = {
-        page, 
-        limit,
-        search , 
-        sort_order , 
-        sort_by , 
-        created_by , 
-        updated_by , 
-        created_by_name , 
-        updated_by_name ,
-        created_from , 
-        created_to , 
-        updated_from , 
-        updated_to
-      }
-
-      const redisKey = CacheManager.buildRedisKey(query);
-
-      const result = await CacheManager.getOrSet<FindResult<CommentsRow>>({
-        key:`comments:list:${redisKey}`,
-        fetcher: async () => await Comment.find({ query, populate: true }),
+      const result = await Comment.find({
+        query: { entity_id: entityId },
+        selectColumns: ["comment"],
+        populate: true,
       });
+
+      if(!result){
+        throw new NotFoundError("Comments not found");
+      }
 
       return res.sendResponse(
         {
-            message: result.data.length === 0 ? "No comments found." : "Comments fetched successfully.",
-            comments: result.data,
-            pagination: {
-              page: result.queryParams.page,
-              limit: result.queryParams.limit,
-              total_count: result.total,
-              total_pages: Math.ceil(result.total / result.queryParams.limit),
-            },
+          message: "Comments fetched successfully.",
+          comments: result,
         },
-        result.data.length === 0 ? 204 : 200,
-        { 
-          targetType: "Comments", 
-          action: "get-all-comments" 
+        200,
+        {
+          targetType: "Comments",
+          action: "get-all-comments",
         },
       );
     } catch (error: unknown) {

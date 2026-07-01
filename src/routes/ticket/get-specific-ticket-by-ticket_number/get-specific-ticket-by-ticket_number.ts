@@ -1,9 +1,8 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
-import {  AuthorizationError, CacheManager, isAuthenticated, isAuthorized, logger, NotFoundError, responseHandler, User, UserRole, UserRow, validateRequest } from "intellisolar-common";
+import {  AuthorizationError, CacheManager, isAuthenticated, isAuthorized, logger, NotFoundError, responseHandler,  UserRole, validateRequest } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
-import { buildTicketStatusMetrics } from "../ticket.helper";
 import { getSpecificTicketByTicketNumberValidation } from "./get-specific-ticket-by-ticket_number.validation";
 
 const router = express.Router();
@@ -41,17 +40,10 @@ router.get(
             }
 
             if (currentUser.role === (UserRole.Tenant as string) && ticket.created_by !== currentUser.id) {
-                const ticketCreator = await User.findOne<UserRow>({
-                    where: { id: ticket.created_by },
-                    select: ["tenant_id"]
-                });
-                if (!ticketCreator || ticketCreator.tenant_id !== currentUser.id) {
+                if (ticket.tenant_id !== currentUser.id) {
                     throw new AuthorizationError("You are not authorized to view this ticket.");
-                }
+                }   
             }
-
-            const statusMetrics = buildTicketStatusMetrics(ticket);
-
 
             const data  = {
                 id:ticket.id,
@@ -70,7 +62,6 @@ router.get(
                 component_name:ticket.component_name,
                 component_type:ticket.component_type,
                 status_history:ticket.status_history,
-                status_statistics: statusMetrics,
                 feedback: ticket.feedback,
                 attachments_ids:ticket.attachments_ids,
                 assigned_to_Id:ticket.assigned_to,

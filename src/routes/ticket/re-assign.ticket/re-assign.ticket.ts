@@ -14,9 +14,9 @@ import {
   UserRole,
   validateRequest,
   isAuthorized,
-  AppError,
-  UserRow,
+  AppError
 } from "intellisolar-common";
+import type { UserRow } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket, User } from "../../../models";
 import { reAssignTicketValidation } from "./re-assign.ticket.validation";

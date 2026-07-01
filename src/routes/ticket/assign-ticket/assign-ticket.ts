@@ -1,22 +1,20 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 import {
-  AuthorizationError,
-  CacheManager,
-  Database,
-  InternalServerError,
-  isAuthenticated,
-  logger,
-  NotFoundError,
-  ConflictError,
-  responseHandler,
-  sendEmail,
-  UserRole,
-  validateRequest,
-  isAuthorized,
-  AppError,
-  UserRow,
+    AuthorizationError,
+    CacheManager,
+    Database,
+    InternalServerError,
+    isAuthenticated,
+    isAuthorized,
+    logger,
+    NotFoundError,
+    responseHandler,
+    sendEmail,
+    UserRole,
+    validateRequest,
 } from "intellisolar-common";
+import type { UserRow} from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket, User } from "../../../models";
 import { assignTicketValidation } from "./assign-ticket.validation";
@@ -27,157 +25,149 @@ const router = express.Router();
 const NON_ASSIGNABLE_STATUSES = ["closed", "resolved", "cancelled"];
 
 router.put(
-  "/v1/ticket/:id/assign",
-  responseHandler,
-  isAuthenticated,
-  isAuthorized('assign-ticket'),
-  assignTicketValidation,
-  validateRequest,
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const currentUser = req.currentUser!;
-      const id = (req.params["id"] as string);
-      const body = req.body as Record<string, unknown>;
-      const adminId = (body["admin_id"] as string);
+    "/v1/assign/ticket/:admin_id",
+    responseHandler,
+    isAuthenticated,
+    isAuthorized("assign-ticket"),
+    assignTicketValidation,
+    validateRequest,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const currentUser = req.currentUser!;
+            const adminId = (req.params["admin_id"] as string).trim();
+            const body = req.body as Record<string, unknown>;
+            const ticketIds = [...new Set(body["ticket_ids"] as string[])];
 
 
-      const ticket = await CacheManager.getOrSet<TicketRow>({
-        key: `ticket:${id}`,
-        fetcher: async () => {
-          const ticket = await Ticket.findOne<TicketRow>({
-            where: { id },
-            populate: Ticket.detailPopulateJoins,
-          });
-          if (!ticket) throw new NotFoundError("Ticket not found.");
-          return ticket;
-        },
-      });
+            const adminUser = await CacheManager.getOrSet<UserRow>({
+                key: `user:${adminId}`,
+                fetcher: async () => {
+                    const adminUser = await User.findOne<UserRow>({
+                        where: { id: adminId, is_active: true },
+                        select: ["id", "full_name", "email", "role"],
+                    });
 
-      if (NON_ASSIGNABLE_STATUSES.includes(ticket.status)) {
-        throw new AppError(
-          `Cannot assign a ticket with status "${ticket.status}". Only open or in-progress tickets can be assigned.`,
-          400,
-        );
-      }
+                    if (!adminUser) {
+                        throw new NotFoundError("No active user found with the provided admin_id.");
+                    }
 
-      if (ticket.assigned_to) {
-        throw new ConflictError(
-          "Ticket is already assigned. Please unassign it first before reassigning.",
-        );
-      }
- 
-      const assigneeUser = await CacheManager.getOrSet<UserRow>({
-        key: `user:${adminId}`,
-        fetcher: async () => {
-          const assigneeUser = await User.findOne<UserRow>({
-            where: { id: adminId, is_active: true },
-            select: ["id", "name", "email", "role", "plant_ids"],
-          });
+                    return adminUser;
+                },
+            });
 
-          if (!assigneeUser) {
-            throw new NotFoundError("No active user found with the provided user_id.");
-          }
 
-          return assigneeUser;
-        },
-      });
-     
-      if (assigneeUser.role !== (UserRole.Admin as string)) {
-        throw new AuthorizationError("Tickets can only be assigned to users with the 'Admin' role.");
-      }
+            if (adminUser.role !== (UserRole.Admin as string)) {
+                throw new AuthorizationError("Tickets can only be assigned to users with the 'Admin' role.");
+            }
 
-      const updatedTicket = await Ticket.updateOne<TicketRow>({
-        where: { id },
-        data: {
-          assigned_to: assigneeUser.id,
-          assigned_by: currentUser.id,
-          updated_by: currentUser.id,
-        },
-      });
+            const tickets = await Ticket.findByIds<TicketRow>({
+                where: { id: ticketIds }
+            });
 
-      if (!updatedTicket) {
-        throw new InternalServerError("Failed to assign ticket, please try again later.");
-      };
+            if (tickets.length === 0) {
+                throw new NotFoundError("No tickets found for the provided ticket_ids.");
+            }
 
-      const freshTicket = await CacheManager.getOrSet<TicketRow>({
-        key:`ticket:${id}`,
-        fetcher :async()=>{
-           const freshTicket = await Ticket.findOne<TicketRow>({
-            where: { id },
-            populate: Ticket.detailPopulateJoins,
-          });
+            const foundIds = new Set(tickets.map((t) => t.id));
+            const notFound = ticketIds.filter((id) => !foundIds.has(id));
 
-          if (!freshTicket) {
-            throw new InternalServerError("Failed to retrieve updated ticket details.");
-          }
+            const skipped: { ticket_id: string; reason: string }[] = [];
+            const toAssign: TicketRow[] = [];
 
-          return freshTicket;
+            for (const ticket of tickets) {
+                if (NON_ASSIGNABLE_STATUSES.includes(ticket.status)) {
+                    skipped.push({ ticket_id: ticket.id, reason: `Status is "${ticket.status}"` });
+                } else if (ticket.assigned_to) {
+                    skipped.push({ ticket_id: ticket.id, reason: "Already assigned" });
+                } else {
+                    toAssign.push(ticket);
+                }
+            }
+
+            if (toAssign.length === 0) {
+                return res.sendResponse(
+                    {
+                        message: "No tickets were assigned.",
+                        assigned: [],
+                        skipped,
+                        not_found: notFound,
+                    },
+                    200,
+                );
+            }
+
+            const toAssignIds = toAssign.map((t) => t.id);
+
+            const transaction = await Database.beginTransaction();
+
+            const freshTickets = await Ticket.updateMany<TicketRow>({
+                where: { id: toAssignIds },
+                data: {
+                    assigned_to: adminId,
+                    assigned_by: currentUser.id,
+                    updated_by: currentUser.id,
+                },
+                transaction,
+            });
+
+            if (!freshTickets.length) {
+                throw new InternalServerError("Failed to assign tickets, please try again later.");
+            }
+
+            await Database.commitTransaction(transaction);
+
+            await CacheManager.invalidateMany({
+                ids: toAssignIds,
+                baseKey: "ticket",
+                listPattern: "tickets:list:*",
+            });
+
+            const firstTicket = freshTickets[0] as TicketRow;
+            try {
+                const componentDetails =
+                    firstTicket.component_name || firstTicket.component_type
+                        ? {
+                            component_name: firstTicket.component_name ?? "",
+                            component_type_name: firstTicket.component_type ?? "",
+                        }
+                        : null;
+
+                await sendEmail({
+                    email: adminUser.email,
+                    subject: `${toAssign.length} ticket(s) have been assigned to you`,
+                    message: getAssignmentEmail(
+                        firstTicket,
+                        { plant_name: firstTicket.plant_name ?? "" },
+                        componentDetails,
+                        adminUser.full_name,
+                    ),
+                });
+            } catch (emailError) {
+                const msg = emailError instanceof Error ? emailError.message : String(emailError);
+                logger.warn(`Assign email could not be delivered to ${adminUser.email}: ${msg}`);
+            }
+
+            return res.sendResponse(
+                {
+                    message: `${freshTickets.length} ticket(s) assigned successfully.`,
+                    assigned: freshTickets.map((t) => t.id),
+                    skipped,
+                    not_found: notFound,
+                },
+                200,
+                {
+                    targetType: "Ticket",
+                    targetId: adminId,
+                    action: "assign-ticket",
+                    newData: { assigned_to: adminId, ticket_ids: toAssignIds },
+                },
+            );
+        } catch (error: unknown) {
+            const message = (error instanceof Error ? error.message : String(error));
+            logger.error(`Assign ticket error: ${message}`);
+            return next(error);
         }
-      });
-     
-      await CacheManager.invalidateMany({
-        ids: [id],
-        baseKey: "ticket",
-        listPattern: "tickets:list:*",
-      });
-      await CacheManager.delPattern("tickets:statistics:*");
-      await CacheManager.set(`ticket:${id}`, freshTicket);
-     
-
-      try {
-        const componentDetails =
-          freshTicket.component_name || freshTicket.component_type
-            ? {
-                component_name: freshTicket.component_name ?? "",
-                component_type_name: freshTicket.component_type ?? "",
-              }
-            : null;
-
-        await sendEmail({
-          email: assigneeUser.email,
-          subject: `Ticket assigned to you: ${freshTicket.ticket_number}`,
-          message: getAssignmentEmail(
-            freshTicket,
-            {
-              plant_name: freshTicket.plant_name ?? "",
-            },
-            componentDetails,
-            assigneeUser.full_name,
-          ),
-        });
-      } catch (emailError) {
-        const emailMsg = emailError instanceof Error ? emailError.message : String(emailError);
-        logger.warn(
-          `Assignment email could not be delivered for ticket ${freshTicket.ticket_number} to ${assigneeUser.email}: ${emailMsg}`,
-        );
-      }
-
-
-      res.sendResponse(
-        {
-          message: "Ticket assigned successfully.",
-          ticket: freshTicket,
-        },
-        200,
-        {
-          targetType: "Ticket",
-          targetId: freshTicket.id,
-          action: "assign-ticket",
-          oldData: ticket,
-          newData: freshTicket,
-          modifiedProperties: {
-            assigned_to: freshTicket.assigned_to,
-            updated_by: freshTicket.updated_by,
-            updated_at: freshTicket.updated_at,
-          },
-        },
-      );
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Assign ticket error: ${message}`);
-      return next(error);
-    }
-  },
+    },
 );
 
-export { router as assignTicketV1Router };
+export { router as multipleAssignTicketV1Router };

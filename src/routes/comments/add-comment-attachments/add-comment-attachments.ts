@@ -9,16 +9,16 @@ import { Document } from "../../../models";
 import type { FileRow } from "../../../interface";
 import { UploadStatus, ProcessingStatus } from "../../../enums";
 import { s3Service, PRESIGN_EXPIRY_SEC } from "../../../utils/aws";
-import { presignTicketFileValidation } from "./add-attachments-to-tickets-.validation";
+import { presignCommentFileValidation } from "./add-comment-attachments.validation";
 import path from "path";
 
 const router = express.Router();
 
 router.post(
-  "/v1/ticket/attachments/presign",
+  "/v1/comment/attachments/presign",
   responseHandler,
   isAuthenticated,
-  presignTicketFileValidation,
+  presignCommentFileValidation,
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -42,7 +42,7 @@ router.post(
       const fileExt = path.extname(original_file_name).toLowerCase().replace(".", "");
 
       const s3Key = s3Service.buildKey({
-        module: tenantId ? `ticket-attachments/${tenantId}` : "ticket-attachments",
+        module: tenantId ? `comment-attachments/${tenantId}` : "comment-attachments",
         entityId: uploadedBy,
         fileName: sanitized,
       });
@@ -83,15 +83,15 @@ router.post(
         {
           targetType: "Document",
           targetId: document.id,
-          action: "presign-ticket-attachment",
+          action: "presign-comment-attachment",
           newData: { document_id: document.id },
         },
       );
     } catch (err: unknown) {
-      logger.error(`Presign ticket attachment error: ${(err as Error).message}`);
+      logger.error(`Presign comment attachment error: ${(err as Error).message}`);
       return next(err);
     }
   },
 );
 
-export { router as presignTicketFileV1Router };
+export { router as presignCommentFileV1Router };

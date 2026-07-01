@@ -67,17 +67,17 @@ export class Ticket extends BaseModel {
            notSelectedColumns,
            populate = true
        }: {
-           query: Record<string, any>;
+           query: Record<string, unknown>;
            selectColumns?: string[];
            notSelectedColumns?: string[];
            populate?: boolean;
        }): Promise<FindResult<TicketRow>> {
-           return super.find({
+           return (await super.find({
                query,
                selectColumns,
                notSelectedColumns,
                populate: populate ? this.detailPopulateJoins : [],
-           });
+           }) )as FindResult<TicketRow>;
        }
     
 };

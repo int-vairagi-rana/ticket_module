@@ -24,7 +24,7 @@ const commentBase: PartialFieldConfig[] = [
         internalName: "id",
         type: ValueTypesEnum.UUID,
         sortable: false,
-        filterable: true,
+        filterable: false,
         searchable: false,
     },
     {
@@ -42,7 +42,7 @@ const commentBase: PartialFieldConfig[] = [
         internalName: "entity_id",
         type: ValueTypesEnum.UUID,
         sortable: false,
-        filterable: true,
+        filterable: false,
         searchable: false,
         required: true,
     },
@@ -79,11 +79,10 @@ const commentBase: PartialFieldConfig[] = [
         internalName: "created_by",
         type: ValueTypesEnum.UUID,
         sortable: false,
-        filterable: true,
-        allowArrayFilter: true,
+        filterable: false,
         searchable: false,
-        required: true,
-        updatable: false
+        required:true,
+        updatable:false
     },
     {
         name: "updated_by",
@@ -91,8 +90,7 @@ const commentBase: PartialFieldConfig[] = [
         internalName: "updated_by",
         type: ValueTypesEnum.UUID,
         sortable: false,
-        filterable: true,
-        allowArrayFilter: true,
+        filterable: false,
         searchable: false,
         required: true,
         creatable: false
