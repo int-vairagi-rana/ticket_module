@@ -50,8 +50,8 @@ router.use(createTicketForChatbootV1Router);
 
 
 //comment routes
-router.use(createCommentV1Router);
 router.use(getAllCommentsV1Router);
+router.use(createCommentV1Router);
 router.use(updateCommentV1Router);
 router.use(presignCommentFileV1Router);
 router.use(confirmCommentFileV1Router);

@@ -3,7 +3,6 @@ import type { NextFunction, Request, Response } from "express";
 import {
   AuthorizationError,
   CacheManager,
-  Database,
   ConflictError,
   InternalServerError,
   isAuthorized,
@@ -13,8 +12,10 @@ import {
   sendEmail,
   validateRequest,
   isAuthenticated,
+  UserRole,
 } from "intellisolar-common";
 import type { PlantRow, TicketRow } from "../../../interface";
+import type {UserRow} from "intellisolar-common";
 import { Plant, Ticket, User } from "../../../models";
 import { createTicketForChatbootValidation } from "./create-ticket-for-chatboot.validation";
 import { getAssignmentEmail } from "../../../utils";
@@ -33,7 +34,6 @@ router.post(
   createTicketForChatbootValidation,
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
-    const transaction = await Database.beginTransaction();
     try {
       const {
         name,
@@ -51,7 +51,7 @@ router.post(
 
 
       const createdByUser = await CacheManager.getOrSet<UserRow>({
-        key: `user:${created_by}`,
+        key: `user:${created_by as string}`,
         fetcher: async () => {
           const user = await User.findOne<UserRow>({
             where: { id: created_by , is_active:true },
@@ -65,7 +65,7 @@ router.post(
       });
 
       const plant = await CacheManager.getOrSet<PlantRow>({
-        key: `plant:${plantId}`,
+        key: `plant:${plantId as string}`,
         fetcher: async () => {
           const plant = await Plant.findOne<PlantRow>({
             where: { id: plantId },
@@ -79,16 +79,18 @@ router.post(
       });
 
 
-      if (
-        createdByUser.role === (UserRole.User as string) ||
-        createdByUser.role === (UserRole.Tenant as string)
-      ) {
+      if (createdByUser.role === ( UserRole.User as string ) ) {
         const userPlantIds = createdByUser.plant_ids ?? [];
         if (!userPlantIds.includes(plant.id)) {
           throw new AuthorizationError("You are not authorized to create a ticket for this plant.");
         }
       }
 
+       if(createdByUser.role === (UserRole.Tenant as string)){
+        if(plant.tenant_id !== createdByUser.id){
+          throw new AuthorizationError("You can only create the ticket for your user's plant.");
+      }
+      }
 
       let assignedTo: string | null = null;
       let assignedBY: string | null = null;
@@ -111,14 +113,14 @@ router.post(
         })
         
 
-        if (assigneeUser?.role === UserRole.Admin) {
+        if (assigneeUser?.role === (UserRole.Admin as string)) {
           assignedTo = assigneeUser.id;
           assignedBY = createdByUser.id;
         }
       }
 
       const existingActivePlantTicket = await CacheManager.getOrSet<TicketRow[]>({
-        key: `tickets:plant:${plantId}:created_by:${created_by}:active`,
+        key: `tickets:plant:${plantId as string}:created_by:${created_by as string}:active`,
         fetcher: async () => {
           const existingActivePlantTicket = await Ticket.findByIds<TicketRow>({
             where: {
@@ -141,7 +143,7 @@ router.post(
 
       if (status && status !== "open") {
         throw new AuthorizationError(
-          `You cannot set the ticket status to '${status}' while creating a ticket. Status must be 'open'.`,
+          `You cannot set the ticket status to '${status as string}' while creating a ticket. Status must be 'open'.`,
         );
       }
 
@@ -161,7 +163,7 @@ router.post(
         assigned_by: assignedBY,
       };
 
-      const ticket = await Ticket.create<TicketRow>(data , {transaction:transaction});
+      const ticket = await Ticket.create<TicketRow>(data);
       if (!ticket) {
         throw new InternalServerError("Failed to create ticket, please try again later.");
       }
@@ -171,10 +173,7 @@ router.post(
         baseKey: "ticket",
         listPattern: "tickets:list:*",
       });
-      await CacheManager.delPattern("tickets:statistics:*");
-      await Database.commitTransaction(transaction);
 
-     
       if (assignedTo && plant.contact_person_email) {
         try {
           await sendEmail({
@@ -204,9 +203,6 @@ router.post(
         },
       );
     } catch (error: unknown) {
-      if (transaction) {
-        await Database.rollbackTransaction(transaction);
-      }
       const message = error instanceof Error ? error.message : "unknown-error";
       logger.error(`Create ticket error: ${message}`);
       return next(error);

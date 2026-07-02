@@ -21,7 +21,7 @@ export class Ticket extends BaseModel {
             table: 'users',
             localKey: 'created_by', 
             foreignKey: 'id',
-            select: ['full_name as created_by_name', 'tenant_id as tenant_id']
+            select: ['full_name as created_by_name', 'tenant_id as tenant_id'],
         },
         {
             table: 'users',

@@ -4,10 +4,6 @@ import { TicketPriority  } from "../../../enums/ticket.enum";
 
 
 export const updateMyOwnTicketValidation = [
-  body("status")
-    .not()
-    .exists()
-    .withMessage("You are not authorised to update the ticket status."),
   ...ExpressValidatorWrapper.uuidValidator([
     {
       name: "id",

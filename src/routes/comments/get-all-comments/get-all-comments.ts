@@ -17,7 +17,7 @@ import type { TicketRow } from "../../../interface";
 const router = express.Router();
 
 router.get(
-  "/v1/comments/:entityId",
+  "/v1/comments/:entity_id",
   responseHandler,
   isAuthenticated,
   isAuthorized("get-all-comments"),
@@ -26,7 +26,7 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const currentUser = req.currentUser!;
-      const entityId = req.params["entityId"] as string;
+      const entityId = req.params["entity_id"] as string;
 
       const ticket = await CacheManager.getOrSet<TicketRow>({
         key: `ticket:${entityId}`,
@@ -54,7 +54,9 @@ router.get(
         selectColumns: ["comment"],
         populate: true,
       });
+      await CacheManager.set(`comments:${entityId}`, result);
 
+      
       if(!result){
         throw new NotFoundError("Comments not found");
       }

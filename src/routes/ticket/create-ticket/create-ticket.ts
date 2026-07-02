@@ -16,7 +16,8 @@ import {
   validateRequest,
 } from "intellisolar-common";
 import type { PlantRow, TicketRow } from "../../../interface";
-import { Plant, Ticket , User} from "../../../models";
+import type {UserRow} from "intellisolar-common";
+import { Plant, Ticket, User } from "../../../models";
 import { createTicketValidation } from "./create-ticket.validation";
 import { getAssignmentEmail } from "../../../utils";
 import type { TicketStatus , TicketPriority , TicketSource } from "../../../enums";
@@ -54,11 +55,11 @@ router.post(
       } = req.body as Record<string, unknown>;
 
        const plant = await CacheManager.getOrSet<PlantRow>({
-        key: `plant:${plantId}`,
+        key: `plant:${plantId as string}`,
         fetcher: async () => {
           const plant = await Plant.findOne<PlantRow>({
             where: { id : plantId },
-            select: ["id", "contact_person_email", "contact_person_name","plant_name" , "plant_ids"],
+            select: ["id", "contact_person_email", "contact_person_name","plant_name" , "plant_ids" , "tenant_id"],
           });
           if (!plant) {
             throw new NotFoundError("Plant not found.");
@@ -67,11 +68,17 @@ router.post(
         }
       });
 
-      if (currentUser.role === (UserRole.User as string)||currentUser.role === (UserRole.Tenant as string)) {
+      if (currentUser.role === (UserRole.User as string)) {
         const userPlantIds = currentUser.plant_ids ?? [];
         if (!userPlantIds.includes(plant.id)) {
           throw new AuthorizationError("You are not authorized to create a ticket for this plant.");
         } 
+      }
+
+      if(currentUser.role === (UserRole.Tenant as string)){
+        if(plant.tenant_id !== currentUser.id){
+          throw new AuthorizationError("You can only create the ticket for your user's plant.");
+      }
       }
 
       let assignedTo: string | null = null;
@@ -94,7 +101,7 @@ router.post(
         }
       });
         
-        if (assigneeUser?.role === UserRole.Admin) {
+        if (assigneeUser?.role === (UserRole.Admin as string)) {
           assignedTo = assigneeUser.id;
           assignedBY = currentUser.id;
         }
@@ -152,7 +159,7 @@ router.post(
 
       if (status && status !== "open") {
           throw new AuthorizationError(
-            `You cannot set the ticket status to '${status}' while creating a ticket. Status must be 'open'.`
+            `You cannot set the ticket status to '${status as string}' while creating a ticket. Status must be 'open'.`
           );
       }
   
@@ -174,7 +181,7 @@ router.post(
         assigned_by : assignedBY
       };
 
-      const ticket = await Ticket.create<TicketRow>(data , {transaction : transaction});
+      const ticket = await Ticket.create<TicketRow>(data);
       if (!ticket) {
         throw new InternalServerError("Failed to create ticket, please try again later.");
       }
@@ -184,8 +191,6 @@ router.post(
         baseKey: "ticket",
         listPattern: "tickets:list:*",
       });
-      await CacheManager.delPattern("tickets:statistics:*");
-      await Database.commitTransaction(transaction);
 
     
       if (assignedTo && plant.contact_person_email) {
@@ -222,9 +227,6 @@ router.post(
         },
       );
     } catch (error: unknown) {
-      if (transaction) {
-        await Database.rollbackTransaction(transaction);
-      }
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Create ticket error: ${message}`);
       return next(error);

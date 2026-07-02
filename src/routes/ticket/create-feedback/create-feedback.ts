@@ -55,7 +55,7 @@ router.post(
         throw new AuthorizationError("You can give feedback only for tickets created by you.");
       }
 
-      if (ticket.status !== (TicketStatus.RESOLVED as string)) {
+      if (ticket.status !== (TicketStatus.RESOLVED)) {
         throw new ConflictError("Feedback can be given only after the ticket is resolved successfully.");
       }
 
@@ -98,7 +98,6 @@ router.post(
         baseKey: "ticket",
         listPattern: "tickets:list:*",
       });
-      await CacheManager.delPattern("tickets:statistics:*");
       await CacheManager.set(`ticket:${id}`, freshTicket);
 
 
