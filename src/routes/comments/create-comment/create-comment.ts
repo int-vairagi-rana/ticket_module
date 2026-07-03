@@ -107,7 +107,6 @@ router.post(
       return res.sendResponse(
         {
           message: "Comment created successfully.",
-          Createdcomment,
         },
         201,
         {

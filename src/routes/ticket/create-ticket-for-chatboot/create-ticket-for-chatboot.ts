@@ -199,8 +199,7 @@ router.post(
 
       return res.sendResponse(
         {
-          message: "Ticket created successfully.",
-          ticket,
+          message: "Ticket created successfully."
         },
         201,
         {

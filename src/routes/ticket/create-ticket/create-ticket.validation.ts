@@ -23,7 +23,7 @@ export const createTicketValidation = [
     },
     {
       name: "assigned_to",
-      mandatory: true,
+      nullable:true,
       minLength: 36,
       maxLength: 36,
       message: "Invalid or missing assigned id.",

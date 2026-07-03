@@ -16,7 +16,7 @@ export const updateCommentValidation = [
       mandatory: true,
       minLength: 36,
       maxLength: 36,
-      message: "Invalid or missing id.",
+      message: "Invalid or missing comment id.",
     },
   ]),
   ...ExpressValidatorWrapper.stringValidator([
