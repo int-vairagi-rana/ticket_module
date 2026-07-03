@@ -1,7 +1,7 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 import {
-  AuthorizationError,
+  AppError,
   CacheManager,
   ConflictError,
   InternalServerError,
@@ -16,7 +16,7 @@ import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
 import { TicketStatus } from "../../../enums/ticket.enum";
 import { createFeedbackValidation } from "./create-feedback.validation";
-import { notifyUsers } from "../../../utils/notify-users-utils";
+import { notifyUsers } from "../../../utils/notify-users";
 
 const router = express.Router();
 
@@ -28,12 +28,12 @@ router.post(
   "/v1/ticket/:id/feedback",
   responseHandler,
   isAuthenticated,
-  isAuthorized('create-feedback'),
+  isAuthorized("create-feedback"),
   createFeedbackValidation,
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const id = (req.params["id"] as string);
+      const id = req.params["id"] as string;
       const currentUser = req.currentUser!;
 
       const ticket = await CacheManager.getOrSet<TicketRow>({
@@ -48,19 +48,23 @@ router.post(
             throw new NotFoundError("Ticket not found.");
           }
           return ticket;
-        }
-      })
+        },
+      });
 
       if (ticket.created_by !== currentUser.id) {
-        throw new AuthorizationError("You can give feedback only for tickets created by you.");
+        throw new AppError("You are not authorized", 403);
       }
 
-      if (ticket.status !== (TicketStatus.RESOLVED)) {
-        throw new ConflictError("Feedback can be given only after the ticket is resolved successfully.");
+      if (ticket.status !== (TicketStatus.RESOLVED as string)) {
+        throw new ConflictError(
+          "Feedback can be given only after the ticket is resolved successfully.",
+        );
       }
 
       if (ticket.feedback) {
-        throw new ConflictError("Feedback has already been submitted for this ticket.");
+        throw new ConflictError(
+          "Feedback has already been submitted for this ticket.",
+        );
       }
 
       const body = req.body as Record<string, unknown>;
@@ -73,7 +77,11 @@ router.post(
       };
 
       const updatedTicket = await Ticket.updateOne<TicketRow>({
-        where: { id, created_by: currentUser.id, status: TicketStatus.RESOLVED },
+        where: {
+          id,
+          created_by: currentUser.id,
+          status: TicketStatus.RESOLVED,
+        },
         data: {
           feedback,
           updated_by: currentUser.id,
@@ -81,7 +89,7 @@ router.post(
       });
 
       if (!updatedTicket) {
-        throw new InternalServerError("Failed to give feedback, please try again later.");
+        throw new InternalServerError("Failed to give feedback.");
       }
 
       const freshTicket = await Ticket.findOne<TicketRow>({
@@ -90,7 +98,9 @@ router.post(
       });
 
       if (!freshTicket) {
-        throw new InternalServerError("Failed to retrieve updated ticket details.");
+        throw new InternalServerError(
+          "Failed to retrieve updated ticket details.",
+        );
       }
 
       await CacheManager.invalidateMany({
@@ -98,8 +108,8 @@ router.post(
         baseKey: "ticket",
         listPattern: "tickets:list:*",
       });
-      await CacheManager.set(`ticket:${id}`, freshTicket);
 
+      await CacheManager.set(`ticket:${id}`, freshTicket);
 
       const recipientIds = new Set<string>([
         ...normalizeUserIds(ticket.assigned_to),
@@ -123,8 +133,11 @@ router.post(
             },
           });
         } catch (notifyError) {
-          const notifyMsg = notifyError instanceof Error ? notifyError.message : String(notifyError);
-          logger.warn(`Feedback notification could not be enqueued for ticket #${freshTicket.ticket_number}: ${notifyMsg}`);
+          const notifyMsg =
+            notifyError instanceof Error
+              ? notifyError.message
+              : String(notifyError);
+          logger.error(`Feedback notification could not be enqueued for ticket #${freshTicket.ticket_number}: ${notifyMsg}`);
         }
       }
 
@@ -148,8 +161,7 @@ router.post(
         },
       );
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Create ticket feedback error: ${message}`);
+      logger.error(`Create ticket feedback error: ${error instanceof Error ? error.message : String(error)}`);
       return next(error);
     }
   },

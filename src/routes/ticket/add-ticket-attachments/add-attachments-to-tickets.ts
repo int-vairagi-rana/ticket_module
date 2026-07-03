@@ -1,4 +1,8 @@
-import express, { type NextFunction, type Request, type Response } from "express";
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import {
   isAuthenticated,
   responseHandler,
@@ -26,11 +30,7 @@ router.post(
       const tenantId = currentUser.tenant_id ?? null;
       const uploadedBy = currentUser.id;
 
-      const { original_file_name, mime_type, file_size } = req.body as {
-        original_file_name: string;
-        mime_type: string;
-        file_size: number;
-      };
+      const { original_file_name, mime_type, file_size } = req.body;
 
       const sanitized = path
         .basename(original_file_name)
@@ -39,17 +39,22 @@ router.post(
         .replace(/[^\w.\-]/g, "")
         .toLowerCase();
 
-      const fileExt = path.extname(original_file_name).toLowerCase().replace(".", "");
+      const fileExt = path
+        .extname(original_file_name)
+        .toLowerCase()
+        .replace(".", "");
 
       const s3Key = s3Service.buildKey({
-        module: tenantId ? `ticket-attachments/${tenantId}` : "ticket-attachments",
+        module: tenantId
+          ? `ticket-attachments/${tenantId}`
+          : "ticket-attachments",
         entityId: uploadedBy,
         fileName: sanitized,
       });
 
       const bucket = process.env["AWS_S3_BUCKET"]!;
 
-      const document = await Document.create<FileRow>({
+      const result = await Document.create<FileRow>({
         tenant_id: tenantId,
         file_name: sanitized,
         original_file_name,
@@ -66,7 +71,7 @@ router.post(
       const uploadUrl = await s3Service.generateUploadUrl(s3Key, {
         contentType: mime_type,
         metadata: {
-          document_id: document.id,
+          document_id: result.id,
           uploaded_by: uploadedBy,
           ...(tenantId ? { tenant_id: tenantId } : {}),
         },
@@ -74,7 +79,7 @@ router.post(
 
       return res.sendResponse(
         {
-          document_id: document.id,
+          document_id: result.id,
           upload_url: uploadUrl,
           s3_key: s3Key,
           expires_in: PRESIGN_EXPIRY_SEC,
@@ -82,14 +87,16 @@ router.post(
         201,
         {
           targetType: "Document",
-          targetId: document.id,
+          targetId: result.id,
           action: "presign-ticket-attachment",
-          newData: { document_id: document.id },
+          newData: result,
         },
       );
-    } catch (err: unknown) {
-      logger.error(`Presign ticket attachment error: ${(err as Error).message}`);
-      return next(err);
+    } catch (error: unknown) {
+      logger.error(
+        `Presign ticket attachment error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return next(error);
     }
   },
 );

@@ -39,10 +39,15 @@ router.post(
         .replace(/[^\w.\-]/g, "")
         .toLowerCase();
 
-      const fileExt = path.extname(original_file_name).toLowerCase().replace(".", "");
+      const fileExt = path
+        .extname(original_file_name)
+        .toLowerCase()
+        .replace(".", "");
 
       const s3Key = s3Service.buildKey({
-        module: tenantId ? `comment-attachments/${tenantId}` : "comment-attachments",
+        module: tenantId
+          ? `comment-attachments/${tenantId}`
+          : "comment-attachments",
         entityId: uploadedBy,
         fileName: sanitized,
       });
@@ -87,9 +92,9 @@ router.post(
           newData: { document_id: document.id },
         },
       );
-    } catch (err: unknown) {
-      logger.error(`Presign comment attachment error: ${(err as Error).message}`);
-      return next(err);
+    } catch (error: unknown) {
+      logger.error(`Presign comment attachment error: ${error instanceof Error ? error.message : String(error)}`);
+      return next(error);
     }
   },
 );

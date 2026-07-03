@@ -7,7 +7,7 @@ export const confirmTicketFileValidation = [
       mandatory: true,
       minLength: 36,
       maxLength: 36,
-      message: "Document_id is required and must be a valid UUID.",
+      message: "Invalid or missing document id.",
     },
   ]),
 ];

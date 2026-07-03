@@ -26,7 +26,9 @@ router.post(
       const currentUser = req.currentUser!;
       const { document_id } = req.body as { document_id: string };
 
-      const doc = await Document.findOne<FileRow>({ where: { id: document_id } });
+      const doc = await Document.findOne<FileRow>({
+        where: { id: document_id },
+      });
       if (!doc) throw new NotFoundError("Document not found.");
 
       if (doc.uploaded_by !== currentUser.id) {
@@ -38,7 +40,11 @@ router.post(
         return res.sendResponse(
           { message: "File already confirmed.", document: responseData },
           200,
-          { targetType: "Document", targetId: document_id, action: "confirm-comment-attachment" },
+          {
+            targetType: "Document",
+            targetId: document_id,
+            action: "confirm-comment-attachment",
+          },
         );
       }
 
@@ -52,13 +58,17 @@ router.post(
           where: { id: document_id },
           data: {
             upload_status: UploadStatus.FAILED,
-            error_message: "File not found in S3 - the presigned URL may have expired.",
+            error_message:
+              "File not found in S3 - the presigned URL may have expired.",
           },
         });
         throw new AppError("Upload confirmation failed - file not found in storage. Please try again.", 400);
       }
 
-      const downloadUrl = await s3Service.generateDownloadUrl(doc.s3_key, doc.mime_type ?? undefined);
+      const downloadUrl = await s3Service.generateDownloadUrl(
+        doc.s3_key,
+        doc.mime_type ?? undefined,
+      );
 
       const updatedDoc = await Document.updateOne<FileRow>({
         where: { id: document_id },
@@ -70,7 +80,8 @@ router.post(
         },
       });
 
-      if (!updatedDoc) throw new AppError("Failed to update document status.", 500);
+      if (!updatedDoc)
+        throw new AppError("Failed to update document status.", 500);
 
       const responseData = await Document.toDocumentResponse(updatedDoc);
 
@@ -87,9 +98,9 @@ router.post(
           newData: { document_id },
         },
       );
-    } catch (err: unknown) {
-      logger.error(`Confirm comment attachment error: ${(err as Error).message}`);
-      return next(err);
+    } catch (error: unknown) {
+      logger.error(`Confirm comment attachment error: ${error instanceof Error ? error.message : String(error)}`);
+      return next(error);
     }
   },
 );

@@ -1,66 +1,65 @@
 import { ExpressValidatorWrapper } from "intellisolar-common";
-import { TicketPriority ,  TicketStatus } from "../../../enums/ticket.enum";
-
+import { TicketPriority, TicketStatus } from "../../../enums/ticket.enum";
 
 export const getAllTicketsValidation = [
-   ...ExpressValidatorWrapper.uuidValidator([
+  ...ExpressValidatorWrapper.uuidValidator([
     {
-        name:"assigned_to",
-        query: true,
-        nullable: true,
-        maxLength:36,
-        minLength:36,
-        message:"Invalid user ID format."
-    },
-     {
-        name:"assigned_by",
-        query: true,
-        nullable: true,
-        maxLength:36,
-        minLength:36,
-        message:"Invalid user ID format."
+      name: "assigned_to",
+      query: true,
+      nullable: true,
+      maxLength: 36,
+      minLength: 36,
+      message: "Invalid or missing ids.",
     },
     {
-        name:"created_by",
-        query: true,
-        nullable:true,
-        maxLength:36,
-        minLength:36,
-        message:"Invalid user ID format."
+      name: "assigned_by",
+      query: true,
+      nullable: true,
+      maxLength: 36,
+      minLength: 36,
+      message: "Invalid or missing ids.",
     },
     {
-        name:"updated_by",
-        query: true,
-        nullable:true,
-        maxLength:36,
-        minLength:36,
-        message:"Invalid user ID format."
+      name: "created_by",
+      query: true,
+      nullable: true,
+      maxLength: 36,
+      minLength: 36,
+      message: "Invalid or missing ids.",
     },
     {
-        name:"plant_id",
-        query: true,
-        nullable:true,
-        maxLength:36,
-        minLength:36,
-        message:"Invalid plant ID format."
+      name: "updated_by",
+      query: true,
+      nullable: true,
+      maxLength: 36,
+      minLength: 36,
+      message: "Invalid or missing ids.",
     },
     {
-        name:"component_type_id",
-        query: true,
-        nullable:true,
-        maxLength:36,
-        minLength:36,
-        message:"Invalid component type ID format."
+      name: "plant_id",
+      query: true,
+      nullable: true,
+      maxLength: 36,
+      minLength: 36,
+      message: "Invalid or missing ids.",
     },
     {
-        name:"component_id",
-        query: true,
-        nullable:true,
-        maxLength:36,
-        minLength:36,
-        message:"Invalid component ID format."
-    }
-    ]),
+      name: "component_type_id",
+      query: true,
+      nullable: true,
+      maxLength: 36,
+      minLength: 36,
+      message: "Invalid or missing ids.",
+    },
+    {
+      name: "component_id",
+      query: true,
+      nullable: true,
+      maxLength: 36,
+      minLength: 36,
+      message: "Invalid or missing ids.",
+    },
+  ]),
   ...ExpressValidatorWrapper.numberValidator([
     {
       name: "page",
@@ -75,7 +74,7 @@ export const getAllTicketsValidation = [
       nullable: true,
       min: 1,
       max: 100,
-      message: "Limit must be a positive number less than or equal to 100",
+      message: "Limit must be a positive number between 1 and 100",
     },
     {
       name: "feedback_rating",
@@ -93,41 +92,37 @@ export const getAllTicketsValidation = [
       nullable: true,
       minLength: 0,
       maxLength: 255,
-      message: "Search term must be a string with a maximum length of 255",
+      message: "Search term must be at most 255 characters",
     },
     {
       name: "sort_order",
       query: true,
       nullable: true,
-      customValidators: [
-        (value: string ) => {
-            if (value && !['asc','desc','ASC','DESC'].includes(value)) {
-                throw new Error("Sort order must be asc or desc or ASC  or DESC");
-            }
-            return true ; 
-        },
-    ],
-    message: "Sort order can be ascending or descending.",
+      minLength: 3,
+      maxLength: 4,
+      message: "Sort order can be asc or desc.",
     },
     {
       name: "sort_by",
       query: true,
       nullable: true,
-      message: "Sort by must be a string.",
+      minLength: 2,
+      maxLength: 50,
+      message: "Sort by must be at most 50 characters.",
     },
     {
       name: "plant_name",
       query: true,
       nullable: true,
       maxLength: 50,
-      message: "Plant name must be a valid string"
+      message: "Plant name must be a valid string",
     },
     {
       name: "component_type",
       query: true,
       nullable: true,
       maxLength: 50,
-      message: `Component type must be a valid string`
+      message: `Component type must be a valid string`,
     },
     {
       name: "component_name",
@@ -154,28 +149,22 @@ export const getAllTicketsValidation = [
       query: true,
       nullable: true,
       customValidators: [
-        (value:TicketStatus) => {
-          if (!Object.values(TicketStatus).includes(value)) {
-            throw new Error("Invalid status type");
-          }
-          return value ;
-        }
+        (value: string) =>
+          Object.values(TicketStatus).includes(value.trim() as TicketStatus),
       ],
-      message: "Status must be a valid status",
+      message: `Invalid status type must be in ${Object.values(TicketStatus).join(", ")}.`,
     },
     {
       name: "priority",
       query: true,
       nullable: true,
       customValidators: [
-        (value:TicketPriority) => {
-          if (!Object.values(TicketPriority).includes(value)) {
-            throw new Error("Invalid Priority type");
-          }
-          return value ;
-        }
+        (value: string) =>
+          Object.values(TicketPriority).includes(
+            value.trim() as TicketPriority,
+          ),
       ],
-      message: "Priority must be a valid priority",
+      message: `Invalid priority type must be in ${Object.values(TicketPriority).join(", ")}.`,
     },
   ]),
   ...ExpressValidatorWrapper.dateValidator([
@@ -183,19 +172,19 @@ export const getAllTicketsValidation = [
       name: "resolved_at_start",
       query: true,
       nullable: true,
-      message: "Resolved at start must be a valid ISO 8601 date."
-    }
-    ,{
+      message: "Resolved at start must be a valid ISO 8601 date.",
+    },
+    {
       name: "resolved_at_end",
       query: true,
       nullable: true,
-      message: "Resolved at end must be a valid ISO 8601 date."
+      message: "Resolved at end must be a valid ISO 8601 date.",
     },
     {
       name: "created_at_start",
       query: true,
       nullable: true,
-      message: "Created at start must be a valid ISO 8601 date."
+      message: "Created at start must be a valid ISO 8601 date.",
     },
     {
       name: "created_at_end",
@@ -207,7 +196,7 @@ export const getAllTicketsValidation = [
       name: "updated_at_start",
       query: true,
       nullable: true,
-      message: "Updated at start must be a valid ISO 8601 date."
+      message: "Updated at start must be a valid ISO 8601 date.",
     },
     {
       name: "updated_at_end",
@@ -217,26 +206,23 @@ export const getAllTicketsValidation = [
     },
   ]),
   ...ExpressValidatorWrapper.booleanValidator([
-    {   
-        name: 'overdue', 
-        query: true, 
-        nullable: true, 
-        message: 'Overdue must be true or false' 
-
+    {
+      name: "overdue",
+      query: true,
+      nullable: true,
+      message: "Overdue must be a boolean value.",
     },
-    {  
-        name: 'unassigned', 
-        query: true, 
-        nullable: true, 
-        message: 'Unassigned must be true or false' 
-
+    {
+      name: "unassigned",
+      query: true,
+      nullable: true,
+      message: "Unassigned must be a boolean value.",
     },
-    {  
-        name: 'has_feedback', 
-        query: true, 
-        nullable: true, 
-        message: 'Has_Feedback must be true or false' 
-
+    {
+      name: "has_feedback",
+      query: true,
+      nullable: true,
+      message: "Has_Feedback must be a boolean value.",
     },
-  ])
+  ]),
 ];

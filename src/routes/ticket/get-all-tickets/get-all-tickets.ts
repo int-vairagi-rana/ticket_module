@@ -117,9 +117,7 @@ router.get(
         },
       );
     } catch (error: unknown) {
-      logger.error(
-        `Get all tickets error: ${error instanceof Error ? error.message : "unknown-error"}`,
-      );
+      logger.error(`Get all tickets error: ${error instanceof Error ? error.message : "unknown-error"}`);
       return next(error);
     }
   },

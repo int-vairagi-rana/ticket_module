@@ -7,7 +7,7 @@ export const confirmCommentFileValidation = [
       mandatory: true,
       minLength: 36,
       maxLength: 36,
-      message: "document_id is required and must be a valid UUID.",
+      message: "Invalid or missing component id.",
     },
   ]),
 ];

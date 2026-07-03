@@ -1,5 +1,4 @@
 import { ExpressValidatorWrapper } from "intellisolar-common";
-import { body } from "express-validator";
 
 export const assignTicketValidation = [
   ...ExpressValidatorWrapper.uuidValidator([
@@ -7,24 +6,24 @@ export const assignTicketValidation = [
       name: "admin_id",
       param: true,
       mandatory: true,
-      minLength:36,
-      maxLength:36,
+      minLength: 36,
+      maxLength: 36,
       message: "Invalid or missing admin id.",
     },
     {
       name: "ticket_ids.*",
-      ifConditions: [body("ticket_ids").exists().isArray()],
       mandatory: true,
-      nullable: false,
       minLength: 36,
       maxLength: 36,
-      message: "Each ticket_id must be a valid UUID.",
+      message: "Invalid or missing ticket ids.",
     },
   ]),
   ...ExpressValidatorWrapper.arrayValidator([
     {
       name: "ticket_ids",
       mandatory: true,
+      minLength: 1,
+      maxLength: 100,
       message: "Ticket ids must be a non-empty array.",
     },
   ]),

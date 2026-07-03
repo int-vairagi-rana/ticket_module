@@ -1,5 +1,5 @@
-import { ExpressValidatorWrapper } from "intellisolar-common";
-import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES } from "../../../utils/aws";
+import { ExpressValidatorWrapper, validExtensions } from "intellisolar-common";
+import { MAX_FILE_SIZE_BYTES } from "../../../utils/aws";
 
 export const presignTicketFileValidation = [
   ...ExpressValidatorWrapper.stringValidator([
@@ -11,13 +11,16 @@ export const presignTicketFileValidation = [
     {
       name: "mime_type",
       mandatory: true,
-      message: "Mime type is required and must be a supported type.",
       customValidators: [
         (value: string) => {
-          if (!ALLOWED_MIME_TYPES.has(value)) throw new Error();
+          if (!(value in validExtensions)) {
+            throw new Error();
+          }
           return true;
         },
       ],
+      message:
+        "Mime type is required and must be a string. Supported file types are JPEG, PNG, WEBP, SVG, PDF, DOC, DOCX, XLS, XLSX, CSV, and JSON.",
     },
   ]),
   ...ExpressValidatorWrapper.numberValidator([

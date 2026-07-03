@@ -14,7 +14,7 @@ import {
 import type { CommentsRow, TicketRow } from "../../../interface";
 import { Ticket, Comment } from "../../../models";
 import { createCommentValidation } from "./create-comments.validation";
-import { notifyUsers } from "../../../utils/notify-users-utils";
+import { notifyUsers } from "../../../utils/notify-users";
 
 const router = express.Router();
 

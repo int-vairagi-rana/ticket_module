@@ -1,7 +1,6 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 import {
-  AuthorizationError,
   CacheManager,
   Database,
   InternalServerError,
@@ -30,16 +29,16 @@ router.put(
   "/v1/ticket/:id/reassign",
   responseHandler,
   isAuthenticated,
-  isAuthorized('assign-ticket'),
+  isAuthorized("assign-ticket"),
   reAssignTicketValidation,
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
     const transaction = await Database.beginTransaction();
     try {
       const currentUser = req.currentUser!;
-      const id = (req.params["id"] as string);
+      const id = req.params["id"] as string;
       const body = req.body as Record<string, unknown>;
-      const userId = (body["user_id"] as string);
+      const userId = body["user_id"] as string;
 
       const ticket = await CacheManager.getOrSet<TicketRow>({
         key: `ticket:${id}`,
@@ -54,10 +53,7 @@ router.put(
       });
 
       if (NON_ASSIGNABLE_STATUSES.includes(ticket.status)) {
-        throw new AppError(
-          `Cannot reassign a ticket with status "${ticket.status}". Only open or in-progress tickets can be reassigned.`,
-          400,
-        );
+        throw new AppError(`Cannot reassign a ticket with status "${ticket.status}". Only open or in-progress tickets can be reassigned.`, 403);
       }
 
       if (userId === ticket.assigned_to) {
@@ -65,40 +61,38 @@ router.put(
       }
 
       const assigneeUser = await CacheManager.getOrSet<UserRow>({
-         key:`user:${userId}`,
-         fetcher : async()=>{
+        key: `user:${userId}`,
+        fetcher: async () => {
           const assigneeUser = await User.findOne<UserRow>({
             where: { id: userId, is_active: true },
             select: ["id", "name", "email", "role", "plant_ids"],
           });
 
           if (!assigneeUser) {
-            throw new NotFoundError("No active user found with the provided user_id.");
+            throw new NotFoundError("User not found.");
           }
           return assigneeUser;
-
-        }
-      })
-      
+        },
+      });
 
       if (assigneeUser.role !== (UserRole.Admin as string)) {
-        throw new AuthorizationError("Tickets can only be assigned to users with the 'Admin' role.");
+        throw new AppError("Tickets can only be assigned to users with the Admin role.", 403);
       }
 
-     const previousAssigneeUser = await CacheManager.getOrSet<UserRow>({
-      key:`user:${ticket.assigned_to}`,
-      fetcher : async ()=>{
+      const previousAssigneeUser = await CacheManager.getOrSet<UserRow>({
+        key: `user:${ticket.assigned_to}`,
+        fetcher: async () => {
           const previousAssigneeUser = await User.findOne<UserRow>({
-          where: { id: ticket.assigned_to as string },
-          select: ["id", "name", "email"],
-        });
-        if(!previousAssigneeUser){
-          throw new NotFoundError("User not found.");
-        }
-        return previousAssigneeUser;
-      }
-     });
-      
+            where: { id: ticket.assigned_to as string },
+            select: ["id", "name", "email"],
+          });
+          if (!previousAssigneeUser) {
+            throw new NotFoundError("User not found.");
+          }
+          return previousAssigneeUser;
+        },
+      });
+
       const updatedTicket = await Ticket.updateOne<TicketRow>({
         where: { id },
         data: {
@@ -111,7 +105,6 @@ router.put(
       if (!updatedTicket) {
         throw new InternalServerError("Failed to reassign ticket, please try again later.");
       }
-
 
       const freshTicket = await Ticket.findOne<TicketRow>({
         where: { id },
@@ -127,7 +120,7 @@ router.put(
         baseKey: "ticket",
         listPattern: "tickets:list:*",
       });
-      await CacheManager.delPattern("tickets:statistics:*");
+
       await CacheManager.set(`ticket:${id}`, freshTicket);
       await Database.commitTransaction(transaction);
 
@@ -151,12 +144,10 @@ router.put(
           ),
         });
       } catch (emailError) {
-        const emailMsg = emailError instanceof Error ? emailError.message : String(emailError);
-        logger.warn(
-          `Reassignment email could not be delivered for ticket ${freshTicket.ticket_number} to new assignee ${assigneeUser.email}: ${emailMsg}`,
-        );
+        const emailMsg =
+          emailError instanceof Error ? emailError.message : String(emailError);
+        logger.error(`Reassignment email could not be delivered for ticket ${freshTicket.ticket_number} to new assignee ${assigneeUser.email}: ${emailMsg}`);
       }
-
 
       if (previousAssigneeUser) {
         try {
@@ -166,15 +157,14 @@ router.put(
             message: `<p>Hello ${previousAssigneeUser.full_name},</p><p>Ticket ${freshTicket.ticket_number} has been reassigned to another team member and is no longer assigned to you.</p>`,
           });
         } catch (emailError) {
-          const emailMsg = emailError instanceof Error ? emailError.message : String(emailError);
-          logger.warn(
-            `Reassignment notice could not be delivered for ticket ${freshTicket.ticket_number} to previous assignee ${previousAssigneeUser.email}: ${emailMsg}`,
-          );
+          const emailMsg =
+            emailError instanceof Error
+              ? emailError.message
+              : String(emailError);
+          logger.error(`Reassignment notice could not be delivered for ticket ${freshTicket.ticket_number} to previous assignee ${previousAssigneeUser.email}: ${emailMsg}`);
         }
       } else {
-        logger.warn(
-          `Previous assignee (id: ${ticket.assigned_to}) for ticket ${freshTicket.ticket_number} could not be found — skipping reassignment notice.`,
-        );
+        logger.error(`Previous assignee (id: ${ticket.assigned_to}) for ticket ${freshTicket.ticket_number} could not be found — skipping reassignment notice.`);
       }
 
       res.sendResponse(
@@ -200,8 +190,7 @@ router.put(
       if (transaction) {
         await Database.rollbackTransaction(transaction);
       }
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Reassign ticket error: ${message}`);
+      logger.error(`Reassign ticket error: ${error instanceof Error ? error.message : String(error)}`);
       return next(error);
     }
   },

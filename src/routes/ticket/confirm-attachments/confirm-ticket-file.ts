@@ -1,4 +1,8 @@
-import express, { type NextFunction, type Request, type Response } from "express";
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import {
   isAuthenticated,
   responseHandler,
@@ -26,7 +30,9 @@ router.post(
       const currentUser = req.currentUser!;
       const { document_id } = req.body as { document_id: string };
 
-      const doc = await Document.findOne<FileRow>({ where: { id: document_id } });
+      const doc = await Document.findOne<FileRow>({
+        where: { id: document_id },
+      });
       if (!doc) throw new NotFoundError("Document not found.");
 
       if (doc.uploaded_by !== currentUser.id) {
@@ -38,12 +44,19 @@ router.post(
         return res.sendResponse(
           { message: "File already confirmed.", document: responseData },
           200,
-          { targetType: "Document", targetId: document_id, action: "confirm-ticket-attachment" },
+          {
+            targetType: "Document",
+            targetId: document_id,
+            action: "confirm-ticket-attachment",
+          },
         );
       }
 
       if (doc.upload_status === UploadStatus.FAILED) {
-        throw new AppError("This upload has failed. Please start a new upload.", 400);
+        throw new AppError(
+          "This upload has failed. Please start a new upload.",
+          400,
+        );
       }
 
       const exists = await s3Service.exists(doc.s3_key);
@@ -52,13 +65,20 @@ router.post(
           where: { id: document_id },
           data: {
             upload_status: UploadStatus.FAILED,
-            error_message: "File not found in S3 - the presigned URL may have expired.",
+            error_message:
+              "File not found in S3 - the presigned URL may have expired.",
           },
         });
-        throw new AppError("Upload confirmation failed - file not found in storage. Please try again.", 400);
+        throw new AppError(
+          "Upload confirmation failed - file not found in storage. Please try again.",
+          400,
+        );
       }
 
-      const downloadUrl = await s3Service.generateDownloadUrl(doc.s3_key, doc.mime_type ?? undefined);
+      const downloadUrl = await s3Service.generateDownloadUrl(
+        doc.s3_key,
+        doc.mime_type ?? undefined,
+      );
 
       const updatedDoc = await Document.updateOne<FileRow>({
         where: { id: document_id },
@@ -70,13 +90,15 @@ router.post(
         },
       });
 
-      if (!updatedDoc) throw new AppError("Failed to update document status.", 500);
+      if (!updatedDoc)
+        throw new AppError("Failed to update document status.", 500);
 
       const responseData = await Document.toDocumentResponse(updatedDoc);
 
       return res.sendResponse(
         {
-          message: "File confirmed successfully. Use document_id in create ticket payload as attachments_ids.",
+          message:
+            "File confirmed successfully. Use document_id in create ticket payload as attachments_ids.",
           document: responseData,
         },
         200,
@@ -88,7 +110,9 @@ router.post(
         },
       );
     } catch (err: unknown) {
-      logger.error(`Confirm ticket attachment error: ${(err as Error).message}`);
+      logger.error(
+        `Confirm ticket attachment error: ${(err as Error).message}`,
+      );
       return next(err);
     }
   },

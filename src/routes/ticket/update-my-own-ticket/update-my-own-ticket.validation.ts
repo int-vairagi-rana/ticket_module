@@ -1,7 +1,6 @@
 import { body } from "express-validator";
 import { ExpressValidatorWrapper } from "intellisolar-common";
-import { TicketPriority  } from "../../../enums/ticket.enum";
-
+import { TicketPriority } from "../../../enums/ticket.enum";
 
 export const updateMyOwnTicketValidation = [
   ...ExpressValidatorWrapper.uuidValidator([
@@ -15,33 +14,32 @@ export const updateMyOwnTicketValidation = [
     },
     {
       name: "attachments_ids.*",
-      ifConditions: [body("attachments_ids").exists().isArray()],
       nullable: true,
       minLength: 36,
       maxLength: 36,
-      message: "Each id in attachments_ids must be a valid UUID.",
+      message: "Invalid or missing attachments ids.",
     },
     {
       name: "plant_id",
       nullable: true,
       minLength: 36,
       maxLength: 36,
-      message: "Plant id must be valid.",
+      message: "Invalid or missing plant id.",
     },
     {
       name: "component_id",
       nullable: true,
       minLength: 36,
       maxLength: 36,
-      message: "Component id must be valid.",
+      message: "Invalid or missing component id.",
     },
     {
       name: "component_type_id",
       nullable: true,
       minLength: 36,
       maxLength: 36,
-      message: "Component type id must be valid.",
-    }
+      message: "Invalid or missing component type id.",
+    },
   ]),
   ...ExpressValidatorWrapper.stringValidator([
     {
@@ -75,9 +73,14 @@ export const updateMyOwnTicketValidation = [
     {
       name: "priority",
       nullable: true,
-      customValidators: [(value: string) => Object.values(TicketPriority).includes(value as TicketPriority)],
-      message: "Priority must be a valid ticket priority.",
-    }
+      customValidators: [
+        (value: string) =>
+          Object.values(TicketPriority).includes(
+            value.trim() as TicketPriority,
+          ),
+      ],
+      message: `Invalid priority type must be in ${Object.values(TicketPriority).join(", ")}.`,
+    },
   ]),
   ...ExpressValidatorWrapper.emailValidator([
     {
@@ -90,32 +93,35 @@ export const updateMyOwnTicketValidation = [
     {
       name: "phone_number",
       nullable: true,
-      message: "Phone number must be a valid mobile number.",
+      message: "Phone must be a valid phone number.",
     },
   ]),
   ...ExpressValidatorWrapper.objectValidator([
     {
-      name:"feedback",
-      nullable:true,
-      message:"Feedback must be an object"
+      name: "feedback",
+      nullable: true,
+      message: "Feedback must be an object",
     },
   ]),
   ...ExpressValidatorWrapper.numberValidator([
     {
-      name:"feedback.rating",
-      nullable:true,
-      min:1,
-      max:5,
-      message:"Rating must be between 1 to 5 and int",
-    }
+      name: "feedback.rating",
+      nullable: true,
+      min: 1,
+      max: 5,
+      message: "Rating must be a number between 1 and 5.",
+    },
   ]),
   ...ExpressValidatorWrapper.arrayValidator([
     {
-      name:"attachments_ids",
-      nullable:true,
-      minLength:1,
-      message:"Attachment ids must be an array."
-    }
-  ])
- 
+      name: "attachments_ids",
+      nullable: true,
+      minLength: 1,
+      message: "Attachment ids must be a non-empty array.",
+    },
+  ]),
+  body("status")
+    .not()
+    .exists()
+    .withMessage("You are not authorised to update the ticket status."),
 ];

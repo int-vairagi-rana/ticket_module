@@ -26,7 +26,7 @@ export const createFeedbackValidation = [
       nullable: true,
       minLength: 5,
       maxLength: 1000,
-      message: "Feedback description must be between 1 and 1000 characters.",
+      message: "Description must be between 5 and 1000 characters.",
     },
   ]),
 ];

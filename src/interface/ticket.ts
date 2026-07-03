@@ -1,9 +1,5 @@
 import type { TicketStatus, TicketPriority, TicketSource } from '../enums/ticket.enum';
 
-export type TicketStatusValue = typeof TicketStatus[keyof typeof TicketStatus];
-export type TicketPriorityValue = typeof TicketPriority[keyof typeof TicketPriority];
-export  type TicketSourceValue = typeof TicketSource[keyof typeof TicketSource];
-
 export interface TicketRow {
   id: string;
   ticket_number: string;
@@ -15,9 +11,9 @@ export interface TicketRow {
   plant_id:string;
   title: string;
   description?: string | null;
-  status: TicketStatusValue;
-  source:TicketSourceValue,
-  priority: TicketPriorityValue;
+  status: TicketStatus;
+  source:TicketSource,
+  priority: TicketPriority;
   attachments_ids?: string[] | null;
   tenant_id?: string | null;
   created_by: string;
@@ -63,8 +59,8 @@ export interface UpdateTicketInput extends Omit<TicketRow, "id" | "created_at" |
 }
 
 export interface TicketFilters {
-  status?: TicketStatusValue;
-  priority?: TicketPriorityValue;
+  status?: TicketStatus;
+  priority?: TicketPriority;
   plant_id?: string;
   plant_name?: string;
   created_by?: string;
@@ -86,6 +82,5 @@ export interface TicketFilters {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }
-
 
 export type TicketQuery = Record<string, unknown>;

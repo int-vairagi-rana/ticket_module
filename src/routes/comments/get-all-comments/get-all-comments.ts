@@ -17,7 +17,7 @@ import type { TicketRow } from "../../../interface";
 const router = express.Router();
 
 router.get(
-  "/v1/comments/:entity_id",
+  "/v1/comments/:entityId",
   responseHandler,
   isAuthenticated,
   isAuthorized("get-all-comments"),
@@ -26,7 +26,7 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const currentUser = req.currentUser!;
-      const entityId = req.params["entity_id"] as string;
+      const entityId = req.params["entityId"] as string;
 
       const ticket = await CacheManager.getOrSet<TicketRow>({
         key: `ticket:${entityId}`,
@@ -41,12 +41,13 @@ router.get(
           return ticket;
         },
       });
-      
-      const canView = ticket.created_by === currentUser.id || ticket.tenant_id === currentUser.id  ;
-     
-      if (!canView){
-        throw new AuthorizationError("You are not authorise to view comments for this ticket.");
 
+      const canView =
+        ticket.created_by === currentUser.id ||
+        ticket.tenant_id === currentUser.id;
+
+      if (!canView) {
+        throw new AuthorizationError("You are not authorise to view comments for this ticket.");
       }
 
       const result = await Comment.find({
@@ -54,10 +55,8 @@ router.get(
         selectColumns: ["comment"],
         populate: true,
       });
-      await CacheManager.set(`comments:${entityId}`, result);
 
-      
-      if(!result){
+      if (!result) {
         throw new NotFoundError("Comments not found");
       }
 
@@ -73,8 +72,7 @@ router.get(
         },
       );
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "unknwon-error";
-      logger.error(`Get all comments error: ${message}`);
+      logger.error(`Get all comments error: ${error instanceof Error ? error.message : String(error)}`);
       return next(error);
     }
   },

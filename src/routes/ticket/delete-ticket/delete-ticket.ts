@@ -72,14 +72,19 @@ router.delete(
       );
 
       return res.sendResponse(
-        { message: "Ticket deletion completed.", deleted, skipped },
+        { 
+          message: "Ticket deletion completed.", 
+          deleted, 
+          skipped 
+        },
         200,
-        { targetType: "Ticket", action: "delete-ticket" },
+        { 
+          targetType: "Ticket", 
+          action: "delete-ticket" 
+        },
       );
     } catch (error: unknown) {
-      logger.error(
-        `Error while deleting ticket: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      logger.error(`Error while deleting ticket: ${error instanceof Error ? error.message : String(error)}`);
       return next(error);
     }
   },
