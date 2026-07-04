@@ -21,21 +21,8 @@ import { updateMyOwnTicketValidation } from "./update-my-own-ticket.validation";
 
 const router = express.Router();
 
-const UPDATE_FIELDS = [
-  "name",
-  "email",
-  "phone_number",
-  "priority",
-  "plant_id",
-  "component_id",
-  "title",
-  "description",
-  "attachment_ids",
-  "feedback",
-] as const;
-
 router.put(
-  "/v1/ticket/:id/my",
+  "/v1/ticket/:id/me",
   responseHandler,
   isAuthenticated,
   isAuthorized("update-my-own-ticket"),
@@ -43,15 +30,9 @@ router.put(
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const id = req.params["id"] as string;
+      const id = (req.params["id"] as string).trim();
       const currentUser = req.currentUser!;
-
-      const isUser = currentUser.role === (UserRole.User as string);
-      const isTenant = currentUser.role === (UserRole.Tenant as string);
-
-      if (!isUser && !isTenant) {
-        throw new AppError("You are not authorized.", 403);
-      }
+      const ALLOWED_UPDATE_FIELDS =  [ "name", "email", "phone_number",  "priority", "title", "description", "attachment_ids", "feedback"  ] as const;
 
       const ticket = await CacheManager.getOrSet<TicketRow>({
         key: `ticket:${id}`,
@@ -65,106 +46,19 @@ router.put(
         },
       });
 
-      if (isUser && ticket.created_by !== currentUser.id) {
+      if (currentUser.role === UserRole.User && ticket.created_by !== currentUser.id ) {
         throw new AppError("You are not authorized.", 403);
       }
 
-      if (isTenant && ticket.created_by !== currentUser.id) {
-        if (ticket.tenant_id !== currentUser.id) {
+      if (currentUser.role === UserRole.Tenant && ticket.created_by !== currentUser.id) {
+        if (ticket.tenant_id !== currentUser.tenant_id) {
           throw new AppError("You are not authorized.", 403);
         }
       }
 
-      const rawBody = req.body as Record<string, unknown>;
-      const sanitizedBody = sanitizeObject(rawBody);
-      const allowedBody = pickFromObject(sanitizedBody, [
-        ...UPDATE_FIELDS,
-      ]) as Record<string, unknown>;
+      const allowedBody = pickFromObject(sanitizeObject(req.body), [...ALLOWED_UPDATE_FIELDS]);
 
-      if ("email" in allowedBody && typeof allowedBody["email"] === "string") {
-        allowedBody["email"] = allowedBody["email"].trim().toLowerCase();
-      }
-
-      for (const field of ["name", "title", "description"]) {
-        if (field in allowedBody && typeof allowedBody[field] === "string") {
-          allowedBody[field] = allowedBody[field].trim();
-        }
-      }
-
-      const targetPlantId =
-        (allowedBody["plant_id"] as string | undefined) ?? ticket.plant_id;
-      const isPlantChanging =
-        "plant_id" in allowedBody &&
-        allowedBody["plant_id"] &&
-        allowedBody["plant_id"] !== ticket.plant_id;
-
-      if (isPlantChanging) {
-        const userPlantIds = currentUser.plant_ids ?? [];
-        if (!userPlantIds.includes(targetPlantId)) {
-          throw new AppError("You are not authorized.", 403);
-        }
-
-        if (!("component_id" in allowedBody)) {
-          allowedBody["component_id"] = null;
-        }
-      }
-
-      let component:
-        | {
-            id: string;
-            component_type_id: string;
-            component_name: string;
-            component_type_name: string;
-          }
-        | undefined;
-
-      if (allowedBody["component_id"]) {
-        component = await Ticket.findComponentWithType(
-          allowedBody["component_id"] as string,
-          targetPlantId,
-        );
-        if (!component)
-          throw new NotFoundError("Component not found for this plant.");
-
-        allowedBody["component_type_id"] = component.component_type_id;
-      }
-
-      if (
-        "feedback" in allowedBody &&
-        allowedBody["feedback"] !== null &&
-        typeof allowedBody["feedback"] === "object"
-      ) {
-        const feedback = allowedBody["feedback"] as Record<string, unknown>;
-
-        if (
-          "description" in feedback &&
-          typeof feedback["description"] === "string"
-        ) {
-          feedback["description"] = feedback["description"].trim();
-        }
-
-        if ("rating" in feedback) {
-          const rating = feedback["rating"];
-          if (
-            rating !== undefined &&
-            rating !== null &&
-            rating !== "" &&
-            (!Number.isInteger(rating) ||
-              (rating as number) < 1 ||
-              (rating as number) > 5)
-          ) {
-            throw new AppError(
-              "Rating must be an integer between 1 and 5.",
-              400,
-            );
-          }
-        }
-      }
-
-      const updatedData = intersectTwoObjects(ticket, allowedBody) as Record<
-        string,
-        unknown
-      >;
+      const updatedData = intersectTwoObjects(ticket, allowedBody) as Partial<TicketRow>
 
       if (Object.keys(updatedData).length === 0) {
         return res.sendResponse(
@@ -180,8 +74,7 @@ router.put(
 
       const updatedTicket = await Ticket.updateOne<TicketRow>({
         where: {
-          id,
-          created_by: isTenant ? ticket.created_by : currentUser.id,
+          id
         },
         data: { ...updatedData, updated_by: currentUser.id },
       });

@@ -1,4 +1,3 @@
-import { body } from "express-validator";
 import { ExpressValidatorWrapper } from "intellisolar-common";
 import { TicketPriority } from "../../../enums/ticket.enum";
 
@@ -18,28 +17,7 @@ export const updateMyOwnTicketValidation = [
       minLength: 36,
       maxLength: 36,
       message: "Invalid or missing attachments ids.",
-    },
-    {
-      name: "plant_id",
-      nullable: true,
-      minLength: 36,
-      maxLength: 36,
-      message: "Invalid or missing plant id.",
-    },
-    {
-      name: "component_id",
-      nullable: true,
-      minLength: 36,
-      maxLength: 36,
-      message: "Invalid or missing component id.",
-    },
-    {
-      name: "component_type_id",
-      nullable: true,
-      minLength: 36,
-      maxLength: 36,
-      message: "Invalid or missing component type id.",
-    },
+    }
   ]),
   ...ExpressValidatorWrapper.stringValidator([
     {
@@ -80,7 +58,7 @@ export const updateMyOwnTicketValidation = [
           ),
       ],
       message: `Invalid priority type must be in ${Object.values(TicketPriority).join(", ")}.`,
-    },
+    }
   ]),
   ...ExpressValidatorWrapper.emailValidator([
     {
@@ -119,9 +97,6 @@ export const updateMyOwnTicketValidation = [
       minLength: 1,
       message: "Attachment ids must be a non-empty array.",
     },
-  ]),
-  body("status")
-    .not()
-    .exists()
-    .withMessage("You are not authorised to update the ticket status."),
+  ])
+
 ];

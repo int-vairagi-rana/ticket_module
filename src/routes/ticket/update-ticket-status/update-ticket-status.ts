@@ -17,28 +17,26 @@ import {
 import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
 import { TicketStatus } from "../../../enums/ticket.enum";
-import { updateTicketValidation } from "./update-ticket.validation";
+import { updateTicketStatusValidation } from "./update-ticket-status.validation";
 
 const router = express.Router();
 
 const REASON_REQUIRED_STATUSES = [TicketStatus.REOPEN , TicketStatus.ON_HOLD];
-
-const secondsBetween = (from: Date, to: Date) => Math.max(0, Math.floor((to.getTime() - from.getTime()) / 1000));
 
 router.put(
   "/v1/ticket/:id",
   responseHandler,
   isAuthenticated,
   isAuthorized("update-ticket"),
-  updateTicketValidation,
+  updateTicketStatusValidation,
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = (req.params["id"] as string);
       const currentUser = req.currentUser!;
-      const isAdmin = currentUser.role === (UserRole.Admin as string);
-      const isTenant = currentUser.role === (UserRole.Tenant as string);
-      const isSuperAdmin = currentUser.role === (UserRole.SuperAdmin as string);
+      const isAdmin = currentUser.role === UserRole.Admin ;
+      const isTenant = currentUser.role === UserRole.Tenant ;
+      const isSuperAdmin = currentUser.role === UserRole.SuperAdmin;
 
       if (!isAdmin && !isTenant && !isSuperAdmin) {
         throw new AppError("You are not authorized.", 403);
@@ -66,7 +64,7 @@ router.put(
 
       if (isTenant) {
         if (ticket.created_by !== currentUser.id) {
-          if (ticket.tenant_id !== currentUser.id) {
+          if (ticket.tenant_id !== currentUser.tenant_id) {
             throw new AppError("You are not authorized.", 403);
           }
         }
@@ -120,10 +118,7 @@ router.put(
             reason: reason ?? null,
             changed_by: currentUser.id,
             changed_by_name: currentUser.full_name,
-            changed_at: changedAt.toISOString(),
-            stayed_in_status_seconds: Number.isNaN(lastChangedAt.getTime())
-              ? 0
-              : secondsBetween(lastChangedAt, changedAt),
+            changed_at: changedAt.toISOString()
           },
         ]);
 
@@ -209,4 +204,4 @@ router.put(
   },
 );
 
-export { router as updateTicketV1Router };
+export { router as updateTicketStatusV1Router };

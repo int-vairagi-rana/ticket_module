@@ -35,18 +35,12 @@ router.get(
 
       const currentUser = req.currentUser!;
 
-      if (
-        currentUser.role === (UserRole.User as string) &&
-        ticket.created_by !== currentUser.id
-      ) {
+      if (currentUser.role === UserRole.User && ticket.created_by !== currentUser.id) {
         throw new AppError("You are not authorized.", 403);
       }
 
-      if (
-        currentUser.role === (UserRole.Tenant as string) &&
-        ticket.created_by !== currentUser.id
-      ) {
-        if (ticket.tenant_id !== currentUser.id) {
+      if (currentUser.role === UserRole.Tenant && ticket.created_by !== currentUser.id ) {
+        if (ticket.tenant_id !== currentUser.tenant_id) {
           throw new AppError("You are not authorized.", 403);
         }
       }

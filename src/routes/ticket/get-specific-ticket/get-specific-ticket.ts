@@ -34,18 +34,12 @@ router.get(
         },
       });
 
-      if (
-        currentUser.role === (UserRole.User as string) &&
-        ticket.created_by !== currentUser.id
-      ) {
+      if (currentUser.role === UserRole.User  && currentUser.id  !== ticket.created_by ) {
         throw new AppError("You are not authorized.", 403);
       }
 
-      if (
-        currentUser.role === (UserRole.Tenant as string) &&
-        ticket.created_by !== currentUser.id
-      ) {
-        if (ticket.tenant_id !== currentUser.id) {
+      if (currentUser.role === UserRole.Tenant  &&  currentUser.id !== ticket.created_by ) {
+        if (ticket.tenant_id !== currentUser.tenant_id) {
           throw new AppError("You are not authorized.", 403);
         }
       }

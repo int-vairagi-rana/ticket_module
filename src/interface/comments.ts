@@ -10,7 +10,6 @@ export interface CommentsRow {
   updated_by: string | null;
   created_at: Date;
   updated_at: Date;
-  author: CommentAuthor;
 }
 
 export interface CommentWithUserNames extends CommentsRow {
@@ -26,15 +25,6 @@ export interface UpdateCommentBody {
   comment?: string;
 }
 
-export interface CommentFilters {
-  entity_name: string;
-  entity_id: string;
-  page?: number;
-  limit?: number;
-  sortBy?: 'created_at' | 'updated_at';
-  sortOrder?: 'asc' | 'desc';
-}
-
 export interface CommentAudio {
   document_id?: string | null;
   file_key: string;
@@ -43,9 +33,3 @@ export interface CommentAudio {
   duration_seconds?: number | null;
 }
 
-export interface CommentAuthor {
-  id: string | null;
-  name: string | null;
-  email: string | null;
-  avatar_url: string | null;
-}

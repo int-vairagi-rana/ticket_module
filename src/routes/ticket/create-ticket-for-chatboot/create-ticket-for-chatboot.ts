@@ -84,8 +84,8 @@ router.post(
       });
 
       if (
-        createdByUser.role === (UserRole.User as string) ||
-        createdByUser.role === (UserRole.Tenant as string)
+        createdByUser.role === UserRole.User ||
+        createdByUser.role === UserRole.Tenant
       ) {
         const userPlantIds = createdByUser.plant_ids ?? [];
         if (!userPlantIds.includes(plant.id)) {
@@ -97,9 +97,7 @@ router.post(
       let assignedBY: string | null = null;
 
       if (plant.contact_person_email) {
-        const contactPersonEmail = plant.contact_person_email
-          .trim()
-          .toLowerCase();
+        const contactPersonEmail = plant.contact_person_email;
 
         const assigneeUser = await CacheManager.getOrSet<UserRow>({
           key: `users:email:${contactPersonEmail}`,

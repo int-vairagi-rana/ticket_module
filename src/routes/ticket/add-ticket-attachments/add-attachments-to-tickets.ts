@@ -28,7 +28,6 @@ router.post(
     try {
       const currentUser = req.currentUser!;
       const tenantId = currentUser.tenant_id ?? null;
-      const uploadedBy = currentUser.id;
 
       const { original_file_name, mime_type, file_size } = req.body;
 
@@ -48,7 +47,7 @@ router.post(
         module: tenantId
           ? `ticket-attachments/${tenantId}`
           : "ticket-attachments",
-        entityId: uploadedBy,
+        entityId: currentUser.id,
         fileName: sanitized,
       });
 
@@ -65,14 +64,14 @@ router.post(
         mime_type,
         upload_status: UploadStatus.PENDING,
         processing_status: ProcessingStatus.PENDING,
-        uploaded_by: uploadedBy,
+        uploaded_by: currentUser.id,
       });
 
       const uploadUrl = await s3Service.generateUploadUrl(s3Key, {
         contentType: mime_type,
         metadata: {
           document_id: result.id,
-          uploaded_by: uploadedBy,
+          uploaded_by: currentUser.id,
           ...(tenantId ? { tenant_id: tenantId } : {}),
         },
       });

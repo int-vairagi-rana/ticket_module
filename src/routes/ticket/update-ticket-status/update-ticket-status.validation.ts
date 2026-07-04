@@ -1,7 +1,7 @@
 import { ExpressValidatorWrapper } from "intellisolar-common";
 import { TicketStatus } from "../../../enums/ticket.enum";
 
-export const updateTicketValidation = [
+export const updateTicketStatusValidation = [
   ...ExpressValidatorWrapper.uuidValidator([
     {
       name: "id",

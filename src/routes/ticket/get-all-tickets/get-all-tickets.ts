@@ -82,18 +82,18 @@ router.get(
         feedback_rating,
       };
 
-      if (currentUser.role === (UserRole.User as string)) {
+      if (currentUser.role === UserRole.User) {
         query["created_by"] = currentUser.id;
       }
 
-      if (currentUser.role === (UserRole.Tenant as string)) {
+      if (currentUser.role === UserRole.Tenant) {
         query["tenant_id"] = currentUser.id;
       }
       const redisKey = CacheManager.buildRedisKey(query);
 
       const result = await CacheManager.getOrSet<FindResult<TicketRow>>({
-        key: `tickets:lists${redisKey}`,
-        fetcher: async () => await Ticket.find({ query, populate: true }),
+        key: `tickets:list${redisKey}`,
+        fetcher: async () => await Ticket.find({ query }),
       });
 
       return res.sendResponse(

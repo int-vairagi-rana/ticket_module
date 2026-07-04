@@ -9,13 +9,13 @@ import { createTicketForChatbootV1Router } from "./ticket/create-ticket-for-chat
 import { createFeedbackV1Router } from "./ticket/create-feedback/create-feedback";
 import { getSpecificTicketV1Router } from "./ticket/get-specific-ticket/get-specific-ticket";
 import { getAllTicketsV1Router } from "./ticket/get-all-tickets/get-all-tickets";
-import { updateTicketV1Router } from "./ticket/update-ticket/update-ticket";
+import { updateTicketStatusV1Router } from "./ticket/update-ticket-status/update-ticket-status";
 import { updateMyOwnTicketV1Router } from "./ticket/update-my-own-ticket/update-my-own-ticket";
 import { getSpecificTicketByTicketNumberV1Router} from "./ticket/get-specific-ticket-by-ticket_number/get-specific-ticket-by-ticket_number"
 import { deleteTicketsV1Router } from "./ticket/delete-ticket/delete-ticket";
 import { reAssignTicketV1Router } from "./ticket/re-assign.ticket/re-assign.ticket";
 import { multipleAssignTicketV1Router } from "./ticket/assign-ticket/assign-ticket";
-import {addAttachmentsToTicketFileV1Router} from "./ticket/add-ticket-attachments/add-attachments-to-tickets";
+import { addAttachmentsToTicketFileV1Router} from "./ticket/add-ticket-attachments/add-attachments-to-tickets";
 import {confirmTicketFileV1Router} from "./ticket/confirm-attachments/confirm-ticket-file";
 
 //comments routes 
@@ -39,7 +39,7 @@ router.use(getSpecificTicketV1Router);
 router.use(multipleAssignTicketV1Router);
 router.use(reAssignTicketV1Router);
 router.use(updateMyOwnTicketV1Router);
-router.use(updateTicketV1Router);
+router.use(updateTicketStatusV1Router);
 router.use(deleteTicketsV1Router);
 router.use(addAttachmentsToTicketFileV1Router);
 router.use(confirmTicketFileV1Router);

@@ -31,6 +31,8 @@ router.delete(
 
       const tickets = await Ticket.findByIds<TicketRow>({
         where: { id: uniqueIds },
+        select :["id"]
+
       });
 
       const skipped: { id: string; reason: string }[] = [];
