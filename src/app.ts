@@ -61,6 +61,7 @@ const corsOrigins = [
   "http://localhost:5173",
   "http://192.168.0.68:5173",
   "http://192.168.2.66:5173",
+  "http://10.180.187.234:5173",
   ...(process.env["CORS_ORIGIN"] ? [process.env["CORS_ORIGIN"]] : [])
 ];
 

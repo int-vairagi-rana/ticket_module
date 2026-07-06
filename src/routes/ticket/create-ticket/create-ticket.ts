@@ -28,10 +28,8 @@ import type {
 
 const router = express.Router();
 
-const trimString = (value: unknown) =>
-  typeof value === "string" ? value.trim() : value;
-const normalizeEmail = (value: unknown) =>
-  typeof value === "string" ? value.trim().toLowerCase() : value;
+const trimString = (value: unknown) => typeof value === "string" ? value.trim() : value;
+const normalizeEmail = (value: unknown) => typeof value === "string" ? value.trim().toLowerCase() : value;
 
 router.post(
   "/v1/ticket",
@@ -50,8 +48,8 @@ router.post(
         name,
         email,
         phone_number,
-        plant_id: plantId,
-        component_id: componentId,
+        plant_id,
+        component_id,
         title,
         description,
         status,
@@ -60,11 +58,19 @@ router.post(
         attachments_ids,
       } = req.body;
 
+
+      if (currentUser.role === UserRole.User || currentUser.role === UserRole.Tenant) {
+        const userPlantIds = currentUser.plant_ids ?? [];
+        if (!userPlantIds.includes(plant_id)) {
+          throw new AppError("You are not authorized", 403);
+        }
+      }
+
       const plant = await CacheManager.getOrSet<PlantRow>({
-        key: `plant:${plantId}`,
+        key: `plant:${plant_id}`,
         fetcher: async () => {
           const plant = await Plant.findOne<PlantRow>({
-            where: { id: plantId },
+            where: { id: plant_id },
             select: [
               "id",
               "contact_person_email",
@@ -79,16 +85,7 @@ router.post(
         },
       });
 
-      if (
-        currentUser.role === UserRole.User ||
-        currentUser.role === UserRole.Tenant
-      ) {
-        const userPlantIds = currentUser.plant_ids ?? [];
-        if (!userPlantIds.includes(plant.id)) {
-          throw new AppError("You are not authorized", 403);
-        }
-      }
-
+    
       let assignedTo: string | null = null;
       let assignedBY: string | null = null;
 
@@ -117,15 +114,15 @@ router.post(
 
       let component:
         | {
-            id: string;
-            component_type_id: string;
-            component_name: string;
-            component_type_name: string;
-          }
+          id: string;
+          component_type_id: string;
+          component_name: string;
+          component_type_name: string;
+        }
         | undefined;
 
-      if (componentId) {
-        component = await Ticket.findComponentWithType(componentId, plant.id);
+      if (component_id) {
+        component = await Ticket.findComponentWithType(component_id, plant_id);
         if (!component)
           throw new NotFoundError(
             "Component not found for this plant and component type.",
@@ -134,7 +131,7 @@ router.post(
 
       const existingTickets = await Ticket.findByIds<TicketRow>({
         where: {
-          plant_id: plantId,
+          plant_id: plant_id,
           created_by: currentUser.id,
           title: trimString(title),
           description: trimString(description),
@@ -144,21 +141,21 @@ router.post(
       });
 
       if (existingTickets.length > 0) {
-        if (!componentId) {
-         
+        if (!component_id) {
+
           const hasPlantLevelDuplicate = existingTickets.some((t) => t.component_id === null);
           if (hasPlantLevelDuplicate) {
             throw new ConflictError("You already have an active general ticket open for this plant.");
           }
         } else {
-          
+
           const hasComponentDuplicate = existingTickets.some((t) => t.component_id === component!.id);
           if (hasComponentDuplicate) {
             throw new ConflictError("You already have an active ticket open for this component.");
           }
         }
       }
-      
+
       if (status && status !== "open") {
         throw new AppError(
           `You cannot set the ticket status to '${status}' while creating a ticket. Status must be 'open'.`,
@@ -210,9 +207,9 @@ router.post(
               { plant_name: plant.plant_name },
               component
                 ? {
-                    component_name: component.component_name,
-                    component_type_name: component.component_type_name,
-                  }
+                  component_name: component.component_name,
+                  component_type_name: component.component_type_name,
+                }
                 : null,
               plant.contact_person_name,
             ),

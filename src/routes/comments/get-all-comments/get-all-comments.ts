@@ -9,6 +9,7 @@ import {
   CacheManager,
   isAuthorized,
   AuthorizationError,
+  UserRole,
 } from "intellisolar-common";
 import { Ticket, Comment } from "../../../models";
 import { getAllCommentsValidation } from "./get-all-comments.validation";
@@ -42,11 +43,8 @@ router.get(
         },
       });
 
-      const canView =
-        ticket.created_by === currentUser.id ||
-        ticket.tenant_id === currentUser.id;
-
-      if (!canView) {
+      const canNotView =  currentUser.id != ticket.created_by  ||  currentUser.tenant_id != ticket.tenant_id  ;
+      if (!canNotView) {
         throw new AuthorizationError("You are not authorise to view comments for this ticket.");
       }
 

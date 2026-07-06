@@ -2,6 +2,22 @@ import { ExpressValidatorWrapper, validExtensions } from "intellisolar-common";
 import { MAX_FILE_SIZE_BYTES } from "../../../utils/aws";
 
 export const presignTicketFileValidation = [
+  ...ExpressValidatorWrapper.uuidValidator([
+    {
+      name: "plant_id",
+      mandatory: true,
+      minLength: 36,
+      maxLength: 36,
+      message: "Invalid or missing plant id.",
+    },
+    {
+      name: "component_id",
+      nullable: true,
+      minLength: 36,
+      maxLength: 36,
+      message: "Invalid or missing component id.",
+    },
+  ]),
   ...ExpressValidatorWrapper.stringValidator([
     {
       name: "original_file_name",

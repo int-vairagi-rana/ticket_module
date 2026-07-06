@@ -8,9 +8,11 @@ import {
   responseHandler,
   validateRequest,
   logger,
+  UserRole,
+  AppError,
 } from "intellisolar-common";
-import { Document } from "../../../models";
-import type { FileRow } from "../../../interface";
+import { Document, Ticket } from "../../../models";
+import type { FileRow, PresignUploadRequest } from "../../../interface";
 import { UploadStatus, ProcessingStatus } from "../../../enums";
 import { s3Service, PRESIGN_EXPIRY_SEC } from "../../../utils/aws";
 import { presignTicketFileValidation } from "./add-attachments-to-tickets.validation";
@@ -28,8 +30,21 @@ router.post(
     try {
       const currentUser = req.currentUser!;
       const tenantId = currentUser.tenant_id ?? null;
+      const { original_file_name, mime_type, file_size , plant_id , component_id } = req.body as PresignUploadRequest;
 
-      const { original_file_name, mime_type, file_size } = req.body;
+      if (currentUser.role === UserRole.User || currentUser.role === UserRole.Tenant) {
+        const userPlantIds = currentUser.plant_ids ?? [];
+        if (!userPlantIds.includes(plant_id)) {
+          throw new AppError("You are not authorized", 403);
+        }
+      }
+
+      if (component_id) {
+          const component = await Ticket.findComponentWithType(component_id, plant_id);
+          if (!component) {
+            throw new AppError("You are not authorized", 403);
+          }
+      }
 
       const sanitized = path
         .basename(original_file_name)
@@ -45,8 +60,8 @@ router.post(
 
       const s3Key = s3Service.buildKey({
         module: tenantId
-          ? `ticket-attachments/${tenantId}`
-          : "ticket-attachments",
+          ? `ticket-attachments/${tenantId}/${plant_id}`
+          : `ticket-attachments/${tenantId}/${plant_id}/${component_id}`,
         entityId: currentUser.id,
         fileName: sanitized,
       });

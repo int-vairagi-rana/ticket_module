@@ -59,3 +59,11 @@ export interface UpdateTicketInput extends Omit<TicketRow, "id" | "created_at" |
 }
 
 export type TicketQuery = Record<string, unknown>;
+
+export interface PresignUploadRequest {
+  plant_id:string,
+  component_id:string,
+  original_file_name: string;
+  mime_type: string;
+  file_size: number;
+}

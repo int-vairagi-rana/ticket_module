@@ -33,3 +33,9 @@ export interface CommentAudio {
   duration_seconds?: number | null;
 }
 
+export interface PresignUploadRequest{
+  entity_id:string,
+  original_file_name: string;
+  mime_type: string;
+  file_size: number;
+}

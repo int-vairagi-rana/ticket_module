@@ -17,6 +17,7 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const ticket_number = (req.params["ticket_number"] as string).trim();
+      const currentUser = req.currentUser!;
 
       const ticket = await CacheManager.getOrSet<TicketRow>({
         key: `ticket:${ticket_number}`,
@@ -33,13 +34,12 @@ router.get(
         },
       });
 
-      const currentUser = req.currentUser!;
 
-      if (currentUser.role === UserRole.User && ticket.created_by !== currentUser.id) {
+      if (currentUser.role === UserRole.User && currentUser.id != ticket.created_by  ) {
         throw new AppError("You are not authorized.", 403);
       }
 
-      if (currentUser.role === UserRole.Tenant && ticket.created_by !== currentUser.id ) {
+      if (currentUser.role === UserRole.Tenant &&  currentUser.id  != ticket.created_by ) {
         if (ticket.tenant_id !== currentUser.tenant_id) {
           throw new AppError("You are not authorized.", 403);
         }

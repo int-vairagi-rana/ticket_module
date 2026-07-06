@@ -16,7 +16,7 @@ import { deleteTicketsV1Router } from "./ticket/delete-ticket/delete-ticket";
 import { reAssignTicketV1Router } from "./ticket/re-assign.ticket/re-assign.ticket";
 import { multipleAssignTicketV1Router } from "./ticket/assign-ticket/assign-ticket";
 import { addAttachmentsToTicketFileV1Router} from "./ticket/add-ticket-attachments/add-attachments-to-tickets";
-import {confirmTicketFileV1Router} from "./ticket/confirm-attachments/confirm-ticket-file";
+import { confirmTicketFileV1Router} from "./ticket/confirm-attachments/confirm-ticket-file";
 
 //comments routes 
 import { createCommentV1Router } from "./comments/create-comment/create-comment";

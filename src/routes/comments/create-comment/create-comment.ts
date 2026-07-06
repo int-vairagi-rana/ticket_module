@@ -37,7 +37,7 @@ router.post(
         comment,
         audio,
         attachments_ids,
-      } = req.body as Record<string, unknown>;
+      } = req.body ;
 
 
        const ticket = await CacheManager.getOrSet<TicketRow>({
@@ -56,9 +56,9 @@ router.post(
 
      const assigneeIds = normalizeUserIds(ticket.assigned_to);
 
-     const canComment = ticket.created_by === currentUser.id ||  ticket.tenant_id === currentUser.id;
+     const canNotComment =  currentUser.id != ticket.created_by ||  currentUser.tenant_id != ticket.tenant_id ;
       
-      if (!canComment) {
+      if (!canNotComment) {
         throw new AuthorizationError("You are not authorized to add comments to this ticket.");
       }
 

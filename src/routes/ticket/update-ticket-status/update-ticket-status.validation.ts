@@ -24,17 +24,5 @@ export const updateTicketStatusValidation = [
       nullable: true,
       message: "Reason must be a valid string.",
     },
-  ]),
-  ...ExpressValidatorWrapper.dateValidator([
-    {
-      name: "resolved_at",
-      nullable: true,
-      message: "Resolved at must be a valid ISO 8601 date.",
-    },
-    {
-      name: "closed_at",
-      nullable: true,
-      message: "Closed at must be a valid ISO 8601 date.",
-    },
-  ]),
+  ])
 ];

@@ -2,6 +2,15 @@ import { ExpressValidatorWrapper, validExtensions } from "intellisolar-common";
 import { MAX_FILE_SIZE_BYTES } from "../../../utils/aws";
 
 export const presignCommentFileValidation = [
+  ...ExpressValidatorWrapper.uuidValidator([
+    {
+      name: "entity_id",
+      mandatory: true,
+      minLength: 36,
+      maxLength: 36,
+      message: "Invalid or missing entity id.",
+    },
+  ]),
   ...ExpressValidatorWrapper.stringValidator([
     {
       name: "original_file_name",

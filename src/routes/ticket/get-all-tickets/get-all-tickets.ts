@@ -12,6 +12,7 @@ import {
 import type { FindResult } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
+import { TicketStatus } from "../../../enums";
 import { getAllTicketsValidation } from "./get-all-tickets.validation";
 const router = express.Router();
 
@@ -89,6 +90,21 @@ router.get(
       if (currentUser.role === UserRole.Tenant) {
         query["tenant_id"] = currentUser.id;
       }
+
+      if (query["overdue"] === "true" || query["overdue"] === true) {
+        const thresholdDate = new Date();
+        thresholdDate.setHours(thresholdDate.getHours() - 24); // 24 hours ago threshold
+        
+        query["created_at_end"] = thresholdDate.toISOString();
+        query["status"] = [
+          TicketStatus.OPEN,
+          TicketStatus.IN_PROGRESS,
+          TicketStatus.ON_HOLD,
+          TicketStatus.REOPEN,
+        ];
+      }
+      delete query["overdue"];
+
       const redisKey = CacheManager.buildRedisKey(query);
 
       const result = await CacheManager.getOrSet<FindResult<TicketRow>>({

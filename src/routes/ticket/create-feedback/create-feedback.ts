@@ -10,7 +10,8 @@ import {
   NotFoundError,
   responseHandler,
   validateRequest,
-  isAuthorized
+  isAuthorized,
+  UserRole
 } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
@@ -36,6 +37,10 @@ router.post(
       const id = req.params["id"] as string;
       const currentUser = req.currentUser!;
 
+      if(currentUser.role != UserRole.User && currentUser.role != UserRole.Tenant){
+        throw new AppError("You are not authorized", 403);
+      }
+
       const ticket = await CacheManager.getOrSet<TicketRow>({
         key: `ticket:${id}`,
         fetcher: async () => {
@@ -51,11 +56,11 @@ router.post(
         },
       });
 
-      if (ticket.created_by !== currentUser.id) {
+      if (currentUser.id !==  ticket.created_by ) {
         throw new AppError("You are not authorized", 403);
       }
 
-      if (ticket.status !== (TicketStatus.RESOLVED as string)) {
+      if (ticket.status !== TicketStatus.RESOLVED) {
         throw new ConflictError(
           "Feedback can be given only after the ticket is resolved successfully.",
         );

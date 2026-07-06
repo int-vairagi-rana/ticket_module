@@ -69,7 +69,7 @@ router.patch(
         isAdminSuperAdmin ||
         existingComment.created_by === currentUser.id ||
         ticket.created_by === currentUser.id ||
-        ticket.tenant_id === currentUser.id ||
+        ticket.tenant_id === currentUser.tenant_id ||
         ticket.assigned_to === currentUser.id;
 
       if (!canEdit) {
