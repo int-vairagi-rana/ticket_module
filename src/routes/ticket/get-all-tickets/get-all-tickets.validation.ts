@@ -75,15 +75,7 @@ export const getAllTicketsValidation = [
       min: 1,
       max: 100,
       message: "Limit must be a positive number between 1 and 100",
-    },
-    {
-      name: "feedback_rating",
-      query: true,
-      nullable: true,
-      min: 1,
-      max: 5,
-      message: "Feedback rating must be a number between 1 and 5",
-    },
+    }
   ]),
   ...ExpressValidatorWrapper.stringValidator([
     {
@@ -169,18 +161,6 @@ export const getAllTicketsValidation = [
   ]),
   ...ExpressValidatorWrapper.dateValidator([
     {
-      name: "resolved_at_start",
-      query: true,
-      nullable: true,
-      message: "Resolved at start must be a valid ISO 8601 date.",
-    },
-    {
-      name: "resolved_at_end",
-      query: true,
-      nullable: true,
-      message: "Resolved at end must be a valid ISO 8601 date.",
-    },
-    {
       name: "created_at_start",
       query: true,
       nullable: true,
@@ -204,25 +184,5 @@ export const getAllTicketsValidation = [
       nullable: true,
       message: "Updated at end must be a valid ISO 8601 date.",
     },
-  ]),
-  ...ExpressValidatorWrapper.booleanValidator([
-    {
-      name: "overdue",
-      query: true,
-      nullable: true,
-      message: "Overdue must be a boolean value.",
-    },
-    {
-      name: "unassigned",
-      query: true,
-      nullable: true,
-      message: "Unassigned must be a boolean value.",
-    },
-    {
-      name: "has_feedback",
-      query: true,
-      nullable: true,
-      message: "Has_Feedback must be a boolean value.",
-    },
-  ]),
+  ])
 ];

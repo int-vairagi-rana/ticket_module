@@ -25,7 +25,7 @@ const router = express.Router();
 const NON_ASSIGNABLE_STATUSES = ["closed", "resolved", "cancelled"];
 
 router.put(
-  "/v1/assign/ticket/:admin_id",
+  "/v1/assign/ticket",
   responseHandler,
   isAuthenticated,
   isAuthorized("assign-ticket"),
@@ -34,8 +34,8 @@ router.put(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const currentUser = req.currentUser!;
-      const adminId = req.params["admin_id"] as string;
       const body = req.body as Record<string, unknown>;
+      const adminId = body["admin_id"] as string;
       const ticketIds = [...new Set(body["ticket_ids"] as string[])];
 
       const adminUser = await CacheManager.getOrSet<UserRow>({
@@ -53,7 +53,7 @@ router.put(
         },
       });
 
-      if (adminUser.role !== (UserRole.Admin as string)) {
+      if (adminUser.role !== UserRole.Admin) {
         throw new AppError("You are not authorized", 403);
       }
 
@@ -88,7 +88,7 @@ router.put(
         return res.sendResponse(
           {
             message: "No tickets were assigned.",
-            assigned: [],
+            assigned_to: [],
             skipped,
             not_found: notFound,
           },

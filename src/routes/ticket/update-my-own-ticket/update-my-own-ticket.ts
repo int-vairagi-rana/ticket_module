@@ -22,7 +22,7 @@ import { updateMyOwnTicketValidation } from "./update-my-own-ticket.validation";
 const router = express.Router();
 
 router.put(
-  "/v1/ticket/:id/me",
+  "/v1/ticket/my/:id",
   responseHandler,
   isAuthenticated,
   isAuthorized("update-my-own-ticket"),
@@ -104,7 +104,6 @@ router.put(
       return res.sendResponse(
         {
           message: "Your ticket updated successfully.",
-          ticket: freshTicket,
         },
         200,
         {

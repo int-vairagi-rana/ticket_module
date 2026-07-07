@@ -4,6 +4,7 @@ import {  AppError, CacheManager, isAuthenticated, isAuthorized, logger, NotFoun
 import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
 import { getSpecificTicketByTicketNumberValidation } from "./get-specific-ticket-by-ticket_number.validation";
+import { calculateStatusCounts } from "../../../routes/ticket/update-ticket-status/update-ticket-status";
 
 const router = express.Router();
 
@@ -62,6 +63,7 @@ router.get(
         component_name: ticket.component_name,
         component_type: ticket.component_type,
         status_history: ticket.status_history,
+        status_counts: calculateStatusCounts(ticket.status_history, ticket.status),
         feedback: ticket.feedback,
         attachments_ids: ticket.attachments_ids,
         assigned_to_Id: ticket.assigned_to,

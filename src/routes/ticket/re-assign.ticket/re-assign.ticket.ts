@@ -26,7 +26,7 @@ const router = express.Router();
 const NON_ASSIGNABLE_STATUSES = ["closed", "resolved", "cancelled"];
 
 router.put(
-  "/v1/ticket/:id/reassign",
+  "/v1/ticket/reassign/:id",
   responseHandler,
   isAuthenticated,
   isAuthorized("assign-ticket"),

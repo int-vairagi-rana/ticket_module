@@ -18,6 +18,83 @@ import { Ticket } from "../../../models";
 import { TicketStatus } from "../../../enums/ticket.enum";
 import { updateTicketStatusValidation } from "./update-ticket-status.validation";
 
+export const ALLOWED_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
+  [TicketStatus.OPEN]: [TicketStatus.IN_PROGRESS, TicketStatus.CANCELED],
+  [TicketStatus.IN_PROGRESS]: [TicketStatus.ON_HOLD, TicketStatus.RESOLVED, TicketStatus.CANCELED],
+  [TicketStatus.ON_HOLD]: [TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED, TicketStatus.CANCELED],
+  [TicketStatus.RESOLVED]: [TicketStatus.CLOSED, TicketStatus.REOPEN, TicketStatus.CANCELED],
+  [TicketStatus.CLOSED]: [TicketStatus.REOPEN],
+  [TicketStatus.REOPEN]: [TicketStatus.IN_PROGRESS, TicketStatus.CANCELED],
+  [TicketStatus.CANCELED]: [],
+};
+
+export function calculateStatusCounts(statusHistory: unknown, currentStatus: string): Record<string, number> {
+  const counts: Record<string, number> = {
+    open: 0,
+    in_progress: 0,
+    on_hold: 0,
+    resolved: 0,
+    closed: 0,
+    re_open: 0,
+    cancelled: 0,
+  };
+
+  const history = Array.isArray(statusHistory) ? statusHistory : [];
+
+  let initialStatus = currentStatus;
+  if (history.length > 0 && history[0] && typeof history[0] === "object" && "from_status" in history[0]) {
+    initialStatus = String(history[0].from_status);
+  }
+
+  if (counts.hasOwnProperty(initialStatus)) {
+    counts[initialStatus] = 1;
+  }
+
+  for (const entry of history) {
+    if (entry && typeof entry === "object" && "to_status" in entry) {
+      const toStatus = String(entry.to_status);
+      if (counts.hasOwnProperty(toStatus)) {
+        counts[toStatus] = (counts[toStatus] ?? 0) + 1;
+      }
+    }
+  }
+
+  return counts;
+}
+
+export function getTicketStatusAt(ticket: any, time: Date | string): string {
+  const commentTime = new Date(time).getTime();
+
+  const history = Array.isArray(ticket.status_history) ? ticket.status_history : [];
+
+  const sortedHistory = [...history].sort(
+    (a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime()
+  );
+
+  if (sortedHistory.length === 0) {
+    return ticket.status;
+  }
+
+  const initialStatus = sortedHistory[0].from_status || "open";
+
+  const firstChangeTime = new Date(sortedHistory[0].changed_at).getTime();
+  if (commentTime < firstChangeTime) {
+    return initialStatus;
+  }
+
+  let currentStatusAtTime = initialStatus;
+  for (const transition of sortedHistory) {
+    const transitionTime = new Date(transition.changed_at).getTime();
+    if (transitionTime <= commentTime) {
+      currentStatusAtTime = transition.to_status;
+    } else {
+      break;
+    }
+  }
+
+  return currentStatusAtTime;
+}
+
 const router = express.Router();
 
 const REASON_REQUIRED_STATUSES = [TicketStatus.REOPEN, TicketStatus.ON_HOLD];
@@ -34,10 +111,8 @@ router.put(
       const id = req.params["id"] as string;
       const currentUser = req.currentUser!;
       
-      const isAdmin = currentUser.role === UserRole.Admin;
-      const isSuperAdmin = currentUser.role === UserRole.SuperAdmin;
 
-      if (!isAdmin && !isSuperAdmin) {
+      if (currentUser.role != UserRole.Admin && currentUser.role != UserRole.SuperAdmin) {
         throw new AppError("You are not authorized.", 403);
       }
 
@@ -58,7 +133,7 @@ router.put(
       }
       });
      
-      if (isAdmin && ticket.assigned_to !== currentUser.id) {
+      if (currentUser.role != UserRole.Admin && ticket.assigned_to !== currentUser.id) {
         throw new AppError("You are only authorized to update tickets assigned to you.", 403);
       }
 
@@ -76,15 +151,12 @@ router.put(
       }
 
      
-      if (ticket.status === TicketStatus.CLOSED && status !== TicketStatus.REOPEN) {
-        throw new BadRequestError("Cannot update a closed ticket.");
+      const allowedNext = ALLOWED_TRANSITIONS[ticket.status as TicketStatus];
+      if (!allowedNext || !allowedNext.includes(status as TicketStatus)) {
+        throw new BadRequestError(`Cannot change ticket status from '${ticket.status}' to '${status}'.`);
       }
 
-      if (ticket.status !== TicketStatus.OPEN && status === TicketStatus.OPEN  ) {
-        throw new BadRequestError("Ticket status cannot be changed back to 'open'.");
-      }
-
-      if (REASON_REQUIRED_STATUSES.includes(status) && !reason.trim()) {
+      if (REASON_REQUIRED_STATUSES.includes(status) && !reason) {
         throw new BadRequestError(`A reason is required when changing ticket status to ${status}.`);
       }
 
@@ -99,7 +171,7 @@ router.put(
           {
             from_status: ticket.status,
             to_status: status,
-            reason: reason.trim(),
+            reason: reason,
             changed_by: currentUser.id,
             changed_by_name: currentUser.full_name,
             changed_at: changedAt.toISOString(),
@@ -148,8 +220,7 @@ router.put(
 
       return res.sendResponse(
         {
-          message: "Ticket updated successfully.",
-          ticket: freshTicket,
+          message: "Ticket updated successfully."
         },
         200,
         {

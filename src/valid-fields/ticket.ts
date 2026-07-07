@@ -179,9 +179,8 @@ const ticketBase: PartialFieldConfig[] = [
     internalName: "feedback",
     type: ValueTypesEnum.ARRAY,
     sortable: false,
-    filterable: true,
-    searchable: false,
-    allowArrayFilter: true,
+    filterable: false,
+    searchable: false
   },
   {
     name: "status_history",
@@ -233,6 +232,7 @@ const ticketBase: PartialFieldConfig[] = [
     type: ValueTypesEnum.DATE,
     sortable: true,
     filterable: true,
+    allowArrayFilter: true,
     searchable: false,
   },
   {

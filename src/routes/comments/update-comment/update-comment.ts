@@ -111,7 +111,6 @@ router.patch(
       return res.sendResponse(
         {
           message: "Comment updated successfully.",
-          comment: freshComment,
         },
         200,
         {

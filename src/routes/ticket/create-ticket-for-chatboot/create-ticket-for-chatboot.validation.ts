@@ -1,9 +1,10 @@
-import { ExpressValidatorWrapper } from "intellisolar-common";
+import { ExpressValidatorWrapper, ValidationError } from "intellisolar-common";
 import {
   TicketPriority,
   TicketSource,
   TicketStatus,
 } from "../../../enums/ticket.enum";
+import type { Request, Response, NextFunction } from "express";
 
 export const createTicketForChatbootValidation = [
   ...ExpressValidatorWrapper.uuidValidator([
@@ -100,3 +101,38 @@ export const createTicketForChatbootValidation = [
     },
   ]),
 ];
+
+export const createTicketForChatbootAllowedFields = [
+  "plant_id",
+  "assigned_to",
+  "created_by",
+  "name",
+  "title",
+  "description",
+  "status",
+  "priority",
+  "source",
+  "email",
+  "phone_number",
+  "files",
+  "attachment_ids",
+];
+
+export const checkAllowedFields = (allowedFields: string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const bodyKeys = Object.keys(req.body || {});
+    const unknownFields = bodyKeys.filter((key) => !allowedFields.includes(key));
+    if (unknownFields.length > 0) {
+      const errors = unknownFields.map((field) => ({
+        type: "field" as const,
+        value: req.body[field],
+        msg: `Field '${field}' is not allowed.`,
+        path: field,
+        location: "body" as const,
+      }));
+      return next(new ValidationError(errors, "Invalid request parameters"));
+    }
+    next();
+  };
+};
+

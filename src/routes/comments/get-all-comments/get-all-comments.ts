@@ -9,11 +9,11 @@ import {
   CacheManager,
   isAuthorized,
   AuthorizationError,
-  UserRole,
 } from "intellisolar-common";
 import { Ticket, Comment } from "../../../models";
 import { getAllCommentsValidation } from "./get-all-comments.validation";
 import type { TicketRow } from "../../../interface";
+import { getTicketStatusAt } from "../../ticket/update-ticket-status/update-ticket-status";
 
 const router = express.Router();
 
@@ -50,7 +50,7 @@ router.get(
 
       const result = await Comment.find({
         query: { entity_id: entityId },
-        selectColumns: ["comment"],
+        selectColumns: ["comment", "created_at"],
         populate: true,
       });
 
@@ -58,10 +58,20 @@ router.get(
         throw new NotFoundError("Comments not found");
       }
 
+      const commentsWithStatus = result.data.map((c) => ({
+        ...c,
+        ticket_status: getTicketStatusAt(ticket, c.created_at),
+      }));
+
       return res.sendResponse(
         {
-          message: "Comments fetched successfully.",
-          comments: result,
+          comments: { ...result, data: commentsWithStatus},
+          pagination: {
+            page: result.queryParams.page,
+            limit: result.queryParams.limit,
+            total_count: result.total,
+            total_pages: Math.ceil(result.total / result.queryParams.limit),
+          },
         },
         200,
         {

@@ -62,7 +62,7 @@ export type TicketQuery = Record<string, unknown>;
 
 export interface PresignUploadRequest {
   plant_id:string,
-  component_id:string,
+  component_id?:string | null,
   original_file_name: string;
   mime_type: string;
   file_size: number;

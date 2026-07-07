@@ -6,7 +6,7 @@ export enum TicketStatus {
   RESOLVED = "resolved",
   CLOSED = "closed",
   REOPEN = "re_open",
-  CANCELED = "canceled",
+  CANCELED = "cancelled",
 }
 
 // Ticket Priority Enum

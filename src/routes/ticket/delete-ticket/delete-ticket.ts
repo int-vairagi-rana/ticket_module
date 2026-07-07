@@ -75,14 +75,12 @@ router.delete(
 
       return res.sendResponse(
         { 
-          message: "Ticket deletion completed.", 
-          deleted, 
-          skipped 
+          message: "Ticket deletion completed.",    
         },
         200,
         { 
           targetType: "Ticket", 
-          action: "delete-ticket" 
+          action: "delete-ticket",
         },
       );
     } catch (error: unknown) {

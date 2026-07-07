@@ -4,7 +4,6 @@ export const assignTicketValidation = [
   ...ExpressValidatorWrapper.uuidValidator([
     {
       name: "admin_id",
-      param: true,
       mandatory: true,
       minLength: 36,
       maxLength: 36,

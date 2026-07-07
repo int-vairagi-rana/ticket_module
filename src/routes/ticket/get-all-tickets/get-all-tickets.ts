@@ -12,7 +12,6 @@ import {
 import type { FindResult } from "intellisolar-common";
 import type { TicketRow } from "../../../interface";
 import { Ticket } from "../../../models";
-import { TicketStatus } from "../../../enums";
 import { getAllTicketsValidation } from "./get-all-tickets.validation";
 const router = express.Router();
 
@@ -43,16 +42,9 @@ router.get(
         created_at_end,
         updated_at_start,
         updated_at_end,
-        resolved_at_start,
-        resolved_at_end,
-        has_attachements,
-        has_feedback,
-        overdue,
-        unassigned,
         source,
         assigned_to,
-        assigned_by,
-        feedback_rating,
+        assigned_by
       } = req.query;
 
       const query: Record<string, unknown> = {
@@ -71,16 +63,9 @@ router.get(
         created_at_end,
         updated_at_start,
         updated_at_end,
-        resolved_at_start,
-        resolved_at_end,
-        has_attachements,
-        has_feedback,
-        overdue,
-        unassigned,
         source,
         assigned_to,
-        assigned_by,
-        feedback_rating,
+        assigned_by
       };
 
       if (currentUser.role === UserRole.User) {
@@ -91,20 +76,6 @@ router.get(
         query["tenant_id"] = currentUser.id;
       }
 
-      if (query["overdue"] === "true" || query["overdue"] === true) {
-        const thresholdDate = new Date();
-        thresholdDate.setHours(thresholdDate.getHours() - 24); // 24 hours ago threshold
-        
-        query["created_at_end"] = thresholdDate.toISOString();
-        query["status"] = [
-          TicketStatus.OPEN,
-          TicketStatus.IN_PROGRESS,
-          TicketStatus.ON_HOLD,
-          TicketStatus.REOPEN,
-        ];
-      }
-      delete query["overdue"];
-
       const redisKey = CacheManager.buildRedisKey(query);
 
       const result = await CacheManager.getOrSet<FindResult<TicketRow>>({
@@ -112,13 +83,10 @@ router.get(
         fetcher: async () => await Ticket.find({ query }),
       });
 
+
       return res.sendResponse(
         {
-          message:
-            result.data.length === 0
-              ? "No tickets found."
-              : "Tickets fetched successfully.",
-          data: result,
+          tickets:result.data,
           pagination: {
             page: result.queryParams.page,
             limit: result.queryParams.limit,
@@ -126,7 +94,7 @@ router.get(
             total_pages: Math.ceil(result.total / result.queryParams.limit),
           },
         },
-        result.data.length === 0 ? 204 : 200,
+        200, 
         {
           targetType: "Ticket",
           action: "get-all-tickets",
