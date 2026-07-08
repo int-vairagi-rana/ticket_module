@@ -4,7 +4,6 @@ import {
   TicketSource,
   TicketStatus,
 } from "../../../enums/ticket.enum";
-import type { Request, Response, NextFunction } from "express";
 
 export const createTicketForChatbootValidation = [
   ...ExpressValidatorWrapper.uuidValidator([
@@ -28,6 +27,13 @@ export const createTicketForChatbootValidation = [
       minLength: 36,
       maxLength: 36,
       message: "Invalid or missing created by id.",
+    },
+    {
+      name: "attachments_ids.*",
+      mandatory: true,
+      minLength: 36,
+      maxLength: 36,
+      message: "Invalid or missing attachments id.",
     },
   ]),
   ...ExpressValidatorWrapper.stringValidator([
@@ -95,44 +101,13 @@ export const createTicketForChatbootValidation = [
   ]),
   ...ExpressValidatorWrapper.arrayValidator([
     {
-      name: "files",
+      name: "attachment_ids",
       nullable: true,
-      message: "Files must be an array.",
+      minLength:1,
+      maxLength:1000,
+      message: "Attachments ids must be a non-empty array.",
     },
   ]),
 ];
 
-export const createTicketForChatbootAllowedFields = [
-  "plant_id",
-  "assigned_to",
-  "created_by",
-  "name",
-  "title",
-  "description",
-  "status",
-  "priority",
-  "source",
-  "email",
-  "phone_number",
-  "files",
-  "attachment_ids",
-];
-
-export const checkAllowedFields = (allowedFields: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const bodyKeys = Object.keys(req.body || {});
-    const unknownFields = bodyKeys.filter((key) => !allowedFields.includes(key));
-    if (unknownFields.length > 0) {
-      const errors = unknownFields.map((field) => ({
-        type: "field" as const,
-        value: req.body[field],
-        msg: `Field '${field}' is not allowed.`,
-        path: field,
-        location: "body" as const,
-      }));
-      return next(new ValidationError(errors, "Invalid request parameters"));
-    }
-    next();
-  };
-};
 

@@ -13,7 +13,7 @@ export const updateMyOwnTicketValidation = [
     },
     {
       name: "attachments_ids.*",
-      nullable: true,
+      nullable:true,
       minLength: 36,
       maxLength: 36,
       message: "Invalid or missing attachments ids.",
