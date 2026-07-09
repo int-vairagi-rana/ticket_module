@@ -1,34 +1,33 @@
-import { ExpressValidatorWrapper} from "intellisolar-common";
+import { ExpressValidatorWrapper } from "intellisolar-common";
 import {
   TicketPriority,
-  TicketSource,
   TicketStatus,
 } from "../../../enums/ticket.enum";
 
-export const createTicketForChatbootValidation = [
+export const syncTicketToCRMValidation = [
   ...ExpressValidatorWrapper.uuidValidator([
     {
-      name: "plant_id",
+      name: "id",
       mandatory: true,
       minLength: 36,
       maxLength: 36,
-      message: "Plant id must be valid.",
+      message: "Invalid or missing ticket id.",
+    },
+    {
+      name: "project_id",
+      mandatory: true,
+      minLength: 36,
+      maxLength: 36,
+      message: "Invalid or missing project id.",
     },
     {
       name: "assigned_to",
-      nullable: true,
+      mandatory: true,
       minLength: 36,
       maxLength: 36,
       message: "Invalid or missing assigned id.",
     },
-    {
-      name: "created_by",
-      mandatory: true,
-      minLength: 36,
-      maxLength: 36,
-      message: "Invalid or missing created by id.",
-    },
-    {
+     {
       name: "attachments_ids.*",
       mandatory: true,
       minLength: 36,
@@ -63,7 +62,7 @@ export const createTicketForChatbootValidation = [
       customValidators: [
         (value: string) =>
           Object.values(TicketStatus).includes(value.trim() as TicketStatus),
-      ],
+        ],
       message: `Invalid status type must be in ${Object.values(TicketStatus).join(", ")}.`,
     },
     {
@@ -72,20 +71,13 @@ export const createTicketForChatbootValidation = [
         (value: string) =>
           Object.values(TicketPriority).includes(
             value.trim() as TicketPriority,
-          ),
+        ),
       ],
       message: `Invalid priority type must be in ${Object.values(TicketPriority).join(", ")}.`,
-    },
-    {
-      name: "source",
-      customValidators: [
-        (value: string) =>
-          Object.values(TicketSource).includes(value.trim() as TicketSource),
-      ],
-      message: `Invalid source type must be in ${Object.values(TicketSource).join(", ")}.`,
-    },
+    }
+
   ]),
-  ...ExpressValidatorWrapper.emailValidator([
+   ...ExpressValidatorWrapper.emailValidator([
     {
       name: "email",
       mandatory: true,
@@ -99,7 +91,7 @@ export const createTicketForChatbootValidation = [
       message: "Phone must be a valid phone number.",
     },
   ]),
-  ...ExpressValidatorWrapper.arrayValidator([
+   ...ExpressValidatorWrapper.arrayValidator([
     {
       name: "attachment_ids",
       nullable: true,
@@ -109,5 +101,3 @@ export const createTicketForChatbootValidation = [
     },
   ]),
 ];
-
-

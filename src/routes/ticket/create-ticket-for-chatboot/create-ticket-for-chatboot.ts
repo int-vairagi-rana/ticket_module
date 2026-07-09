@@ -17,7 +17,7 @@ import {
 import type { PlantRow, TicketRow } from "../../../interface";
 import {type UserRow, Database} from "intellisolar-common";
 import { Plant, Ticket, User } from "../../../models";
-import { createTicketForChatbootValidation, checkAllowedFields, createTicketForChatbootAllowedFields } from "./create-ticket-for-chatboot.validation";
+import { createTicketForChatbootValidation} from "./create-ticket-for-chatboot.validation";
 import { getAssignmentEmail } from "../../../utils";
 import type{ TicketStatus , TicketSource ,TicketPriority } from "../../../enums";
 
@@ -32,7 +32,6 @@ router.post(
   isAuthenticated,
   isAuthorized("create-ticket"),
   createTicketForChatbootValidation,
-  checkAllowedFields(createTicketForChatbootAllowedFields),
   validateRequest,
   async (req: Request, res: Response, next: NextFunction) => {
     const transaction = await Database.beginTransaction();
