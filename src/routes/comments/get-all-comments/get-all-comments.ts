@@ -9,6 +9,7 @@ import {
   CacheManager,
   isAuthorized,
   AuthorizationError,
+  UserRole,
 } from "intellisolar-common";
 import { Ticket, Comment } from "../../../models";
 import { getAllCommentsValidation } from "./get-all-comments.validation";
@@ -43,17 +44,16 @@ router.get(
         },
       });
 
-      const canNotView =  currentUser.id != ticket.created_by  ||  currentUser.tenant_id != ticket.tenant_id  ;
-      if (!canNotView) {
+      const isPrivileged = currentUser.role === UserRole.Admin || currentUser.role === UserRole.SuperAdmin;
+      const canNotView =  !isPrivileged && (currentUser.id != ticket.created_by  ||  currentUser.tenant_id != ticket.tenant_id ) ;
+      if (canNotView) {
         throw new AuthorizationError("You are not authorise to view comments for this ticket.");
       }
 
       const result = await Comment.find({
-        query: { entity_id: entityId },
-        selectColumns: ["comment", "created_at"],
-        populate: true,
+        query: { entity_id: ticket.id }
       });
-
+    
       if (!result) {
         throw new NotFoundError("Comments not found");
       }

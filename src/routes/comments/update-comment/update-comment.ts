@@ -11,6 +11,7 @@ import {
   NotFoundError,
   responseHandler,
   sanitizeObject,
+  UserRole,
   validateRequest,
 } from "intellisolar-common";
 import type { CommentsRow, TicketRow, UpdateCommentBody } from "../../../interface";
@@ -63,14 +64,14 @@ router.patch(
       });
 
       const isAdminSuperAdmin =
-        currentUser.role === "admin" || currentUser.role === "super_admin";
+        currentUser.role === UserRole.Admin || currentUser.role === UserRole.SuperAdmin;
 
       const canEdit =
-        isAdminSuperAdmin ||
-        existingComment.created_by === currentUser.id ||
+        isAdminSuperAdmin &&
+        (existingComment.created_by === currentUser.id ||
         ticket.created_by === currentUser.id ||
         ticket.tenant_id === currentUser.tenant_id ||
-        ticket.assigned_to === currentUser.id;
+        ticket.assigned_to === currentUser.id);
 
       if (!canEdit) {
         throw new AppError("You are not authorized.", 403);
