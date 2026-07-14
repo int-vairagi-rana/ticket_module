@@ -22,10 +22,8 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const crmAccessToken = process.env['CRM_ACCESS_TOKEN'];
-      //console.log("CRM Token:", crmAccessToken)
       const crmEndpoint = process.env['CRM_GET_ALL_USERS_ENDPOINT'];
-      //console.log("CRM Endpoint:", crmEndpoint);
-
+    
       if (!crmAccessToken || !crmEndpoint) {
         throw new AppError("CRM access token or endpoint not configured.",500);
       }

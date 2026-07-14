@@ -6,7 +6,6 @@ import {
   isAuthorized,
   logger,
   responseHandler,
-  UserRole,
   validateRequest,
 } from "intellisolar-common";
 import { syncTicketToCRMValidation } from "./sync-ticket-crm.validation";
@@ -25,7 +24,7 @@ router.post(
             
             const currenUser = req.currentUser!;
             const crm_access_token = process.env['CRM_ACCESS_TOKEN'];
-            const crm_endpoint = process.env['CRM_END_POINT'];
+            const crm_endpoint = process.env['SYNC_TICKET_TO_CRM_ENPOINT'];
 
             if (!crm_access_token || !crm_endpoint) {
                 throw new AppError("CRM access token or endpoint not configured.", 500);

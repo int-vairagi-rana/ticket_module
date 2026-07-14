@@ -28,7 +28,7 @@ import { confirmCommentFileV1Router } from "./comments/confirm-upload/confirm-co
 
 //sync to crm api routes 
 import {  syncTicketToCRM } from "./ticket/syn-ticket-to-crm/sync-ticket-crm";
-import {  getAllCRMProjects } from "./ticket/get-all-crm-projects/get-al-crm-projects";
+import {  getAllCRMProjects } from "./ticket/get-all-crm-projects/get-all-crm-projects";
 import { getAllCRMUsers } from "./ticket/get-all-crm-users/get-all-crm-users";
 
 
