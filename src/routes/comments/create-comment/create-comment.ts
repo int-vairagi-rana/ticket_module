@@ -6,6 +6,7 @@ import {
   isAuthenticated,
   isAuthorized,
   logger,
+  UserRole,
   NotFoundError,
   responseHandler,
   validateRequest,
@@ -56,9 +57,10 @@ router.post(
 
      const assigneeIds = normalizeUserIds(ticket.assigned_to);
 
-     const canNotComment =  currentUser.id != ticket.created_by ||  currentUser.tenant_id != ticket.tenant_id ;
+    const isPrivileged = currentUser.role === UserRole.Admin || currentUser.role === UserRole.SuperAdmin;
+     const canNotComment =  !isPrivileged && (currentUser.id != ticket.created_by ||  currentUser.tenant_id != ticket.tenant_id) ;
       
-      if (!canNotComment) {
+      if (canNotComment) {
         throw new AuthorizationError("You are not authorized to add comments to this ticket.");
       }
 

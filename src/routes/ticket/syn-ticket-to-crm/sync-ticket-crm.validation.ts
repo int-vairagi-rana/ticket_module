@@ -7,7 +7,7 @@ import {
 export const syncTicketToCRMValidation = [
   ...ExpressValidatorWrapper.uuidValidator([
     {
-      name: "id",
+      name: "ticket_id",
       mandatory: true,
       minLength: 36,
       maxLength: 36,

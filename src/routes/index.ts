@@ -25,6 +25,13 @@ import { updateCommentV1Router } from "./comments/update-comment/update-comment"
 import { presignCommentFileV1Router } from "./comments/add-comment-attachments/add-comment-attachments";
 import { confirmCommentFileV1Router } from "./comments/confirm-upload/confirm-comment-attachments";
 
+
+//sync to crm api routes 
+import {  syncTicketToCRM } from "./ticket/syn-ticket-to-crm/sync-ticket-crm";
+import {  getAllCRMProjects } from "./ticket/get-all-crm-projects/get-al-crm-projects";
+import { getAllCRMUsers } from "./ticket/get-all-crm-users/get-all-crm-users";
+
+
 const router = express.Router();
 
 router.use(commissionPlantV1Router);
@@ -55,6 +62,11 @@ router.use(createCommentV1Router);
 router.use(updateCommentV1Router);
 router.use(presignCommentFileV1Router);
 router.use(confirmCommentFileV1Router);
+
+//sync to crm routes
+router.use(syncTicketToCRM);
+router.use(getAllCRMProjects);
+router.use(getAllCRMUsers);
 
 
 export default router;

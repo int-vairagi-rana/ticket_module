@@ -25,6 +25,7 @@ export const updateCommentValidation = [
       nullable: true,
       minLength: 3,
       maxLength: 1000,
+      isHTML:true,
       message: "Comment must be a string between 3 and 1000 characters.",
     },
   ]),
