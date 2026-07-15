@@ -93,7 +93,7 @@ export const syncTicketToCRMValidation = [
   ]),
    ...ExpressValidatorWrapper.arrayValidator([
     {
-      name: "attachment_ids",
+      name: "attachments_ids",
       nullable: true,
       minLength:1,
       maxLength:1000,

@@ -51,7 +51,9 @@ router.post(
                 crm_endpoint,{
                 method:"POST",
                 headers: {
-                    Authorization: `Bearer ${crm_access_token}`
+                    Authorization: `Bearer ${crm_access_token}`,
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
                 },
                 body:JSON.stringify(payload),
            });
